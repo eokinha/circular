@@ -1,3 +1,5 @@
+import EditorHorarios from "@/components/EditorHorarios";
+import { lerHorarios, problemaHorarios } from "@/lib/horarios";
 import { useState, useMemo } from "react";
 import {
   atualizarMeuNome,
@@ -13,7 +15,7 @@ import { useConfirmacao } from "@/components/ModalConfirmacao";
 import { supabase } from "@/lib/supabase";
 import SeloVerificado from "@/components/SeloVerificado";
 import { instituicaoDoEmail, LIMITES_TEXTO, problemaNomeExibicao, validarEmail } from "@/lib/validacoes";
-import type { Instituicao, Loja, Usuario } from "@/types";
+import type { HorarioDisponivel, Instituicao, Loja, Usuario } from "@/types";
 import {
   Check,
   CircleCheck,
@@ -143,6 +145,7 @@ export default function SecaoPerfil({
   const [descricao, setDescricao] = useState(loja.descricao || "");
   const [whatsapp, setWhatsapp] = useState(loja.whatsapp || loja.contato || "");
   const [locais, setLocais] = useState<string[]>(loja.locais_entrega || []);
+  const [horarios, setHorarios] = useState<HorarioDisponivel[]>(lerHorarios(loja.horarios));
   const [salvandoPerfil, setSalvandoPerfil] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [capaUploading, setCapaUploading] = useState(false);
@@ -281,6 +284,11 @@ export default function SecaoPerfil({
       setMensagemPerfil({ tipo: "erro", texto: problemaExibicao });
       return;
     }
+    const problemaHorario = problemaHorarios(horarios);
+    if (problemaHorario) {
+      setMensagemPerfil({ tipo: "erro", texto: problemaHorario });
+      return;
+    }
     setSalvandoPerfil(true);
 
     // lojas.contato guarda só dígitos (DDI + DDD + número). Em branco = sem WhatsApp (contato só pelo chat)
@@ -305,6 +313,7 @@ export default function SecaoPerfil({
         whatsapp: whatsapp.trim(),
         contato,
         locais_entrega: locais,
+        horarios,
       });
 
       onLojaAtualizada({
@@ -314,6 +323,7 @@ export default function SecaoPerfil({
         whatsapp: whatsapp.trim(),
         contato,
         locais_entrega: locais,
+        horarios,
       });
 
       setMensagemPerfil({ tipo: "sucesso", texto: "Perfil atualizado." });
@@ -537,6 +547,15 @@ export default function SecaoPerfil({
             })}
           </div>
         </div>
+
+        {/* Dias e horários no campus (migração 28) */}
+        <fieldset>
+          <legend className="block text-sm font-semibold text-tinta">Quando você está no campus</legend>
+          <p className="text-xs text-tinta-suave mt-1 mb-2">
+            Aparece no seu perfil e nos seus anúncios, para combinar a entrega. Deixe tudo desmarcado se preferir não mostrar.
+          </p>
+          <EditorHorarios valor={horarios} onChange={setHorarios} />
+        </fieldset>
 
         {/* Botão Salvar */}
         <div className="pt-4 border-t border-borda flex items-center justify-end">

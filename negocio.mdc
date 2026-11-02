@@ -1,118 +1,65 @@
 ---
-description: Regras de negócio do Mercadinho Universitário
-globs: ["src/**/*.ts", "src/**/*.tsx"]
+description: Regras de negócio do Circular (marketplace universitário)
+globs: ["src/**/*.ts", "src/**/*.tsx", "db/**/*.sql"]
 alwaysApply: true
 ---
 
-# Regras de negócio — Mercadinho Universitário
+# Regras de negócio — Circular
+
+Resumo para agentes. A fonte completa (schema, RPCs, segurança, migrações) é o `CLAUDE.md`; se os dois
+divergirem, vale o `CLAUDE.md` e este arquivo deve ser corrigido.
 
 ## Atores
 
-| Ator | Condição | Permissões |
+| Ator | Condição | Pode |
 |---|---|---|
-| Visitante | Sem cadastro | Nenhuma — deve se registrar |
-| Estudante | Cadastrado | Navegar, visualizar lojas e produtos |
-| Vendedor | Estudante + `matricula_validada = true` + loja aprovada | Criar e gerenciar lojas e produtos |
-| Administrador | Papel especial | Validar matrículas, aprovar lojas, gerenciar instituições, desativar usuários |
+| Visitante | Sem login | Ver a home de apresentação; o catálogo exige login |
+| Estudante | Cadastrado com e-mail de faculdade participante | Navegar no catálogo do próprio campus, favoritar, perguntar, conversar, avaliar, denunciar |
+| Vendedor | Estudante verificado, conta `ativo` | Publicar e gerenciar anúncios (WhatsApp é opcional; o chat é o canal padrão) |
+| Admin | `usuarios.is_admin = true` (definido no banco) | Moderar contas, perfis, denúncias e comentários; definir impulsionados; gerenciar imagens |
 
----
+## Cadastro e verificação
 
-## Autenticação e cadastro
+- Cadastro só com e-mail de faculdade participante (`instituicoes.dominios`), checado no cliente e no banco
+- A matrícula é verificada **automaticamente** pelo e-mail confirmado; a equipe não aprova matrícula
+- Cada aluno fica no campus do próprio e-mail; trocar de campus = trocar o e-mail (os anúncios ativos são pausados)
+- Cadastro exige aceitar Termos e Política de Privacidade; o aluno exclui a conta em Painel → Meus dados
 
-- Qualquer pessoa pode se cadastrar informando matrícula e instituição
-- Matrícula **não é validada automaticamente** — admin confirma manualmente (`matricula_validada = true`)
-- Sem matrícula validada: usuário pode navegar mas **não pode criar lojas**
-- Lojas e produtos visíveis **apenas para usuários autenticados**
+## Perfil (tabela `lojas`)
 
----
+- **Um perfil por aluno**, criado no cadastro com `status = 'ativo'`; o aluno não cria nem apaga perfil
+- Status: `pendente | ativo | pausado | reprovado`; só `ativo` aparece no catálogo
+- O aluno alterna `ativo ↔ pausado`; `reprovado` é da moderação
+- Nome público = nome de exibição (opcional, ex.: "Bia Doces") ou nome + sobrenome
+- O aluno mostra locais de encontro e os dias e horários em que está no campus
+- Textos para o aluno falam em "perfil", não em "loja"
 
-## Instituições
+## Anúncios (tabela `produtos`)
 
-- Cadastradas **exclusivamente pelo administrador**
-- Usuário vincula-se a uma instituição no cadastro (`usuarios.instituicoes_id`)
-- Uma instituição pode ter múltiplas lojas de estudantes diferentes
-- Listagem de lojas pode ser filtrada por instituição
+- Só o dono (ou admin) gerencia; status `ativo | pausado | vendido`
+- Aparece no catálogo se produto **e** perfil estão `ativo` e o anúncio foi renovado nos últimos 60 dias
+- Preço > 0 para venda; anúncio só de troca pode ter preço 0
+- Catálogo, busca e home mostram só o campus do aluno; anúncio de outro campus abre só leitura
 
----
+## Contato e compra
 
-## Lojas
+- A plataforma só conecta comprador e vendedor: **sem carrinho, pedido ou pagamento interno**
+- Canais: chat interno e, se o vendedor cadastrou, WhatsApp (só para logados, via RPC)
 
-| Status | Definido por | Aparece na listagem |
-|---|---|---|
-| `pendente` | Sistema (ao criar) | Não |
-| `ativo` | Admin (aprovação) | Sim |
-| `pausado` | Vendedor | Não |
-| `reprovado` | Admin | Não |
+## Moderação
 
-- Loja sempre inicia com `status = 'pendente'`
-- Um estudante pode ter **várias lojas**
-- Vendedor pode alternar entre `ativo` e `pausado`
-- Admin pode mover para qualquer status
-- **Nunca exibir** loja com `status != 'ativo'` na listagem pública
-- Query de listagem sempre deve incluir: `.eq('status', 'ativo')`
+- Perguntas, respostas e avaliações passam pela Vettly antes de gravar; recusado não é salvo
+- Qualquer aluno denuncia anúncio, perfil, comentário ou mensagem; a equipe trata em `/admin/denuncias`
+- Contas: a equipe suspende (1 a 90 dias, volta sozinha), bloqueia (sem prazo) ou reativa em `/admin/contas`,
+  sempre com motivo que o aluno vê no painel; tirar do ar reprova o perfil e pausa os anúncios
 
----
+## Regras de implementação que vêm do negócio
 
-## Produtos
-
-- Somente o dono da loja (`lojas.usuario_id = usuario autenticado`) gerencia seus produtos
-- Campos obrigatórios: `nome`, `preco`, `categoria_id`
-- `preco` é obrigatório e sempre exibido — nunca omitir
-- `imagem_url` vem do Supabase Storage após upload do vendedor
-- Produto só aparece se `loja.status = 'ativo'`
-
----
-
-## Compra
-
-- Plataforma **apenas conecta** comprador e vendedor — não intermedia
-- Contato via WhatsApp ou email informado em `lojas.contato`
-- **Não implementar**: carrinho, pedido, checkout ou pagamento interno
-
----
-
-## Fluxos
-
-**Cadastro de loja:**
-```
-Estudante se cadastra → Admin valida matrícula → Estudante cria loja
-→ status = 'pendente' → Admin aprova → status = 'ativo'
-→ Loja aparece na listagem → Vendedor gerencia (ativo/pausado)
-```
-
-**Compra:**
-```
-Usuário navega → Filtra por instituição/categoria → Acessa loja
-→ Visualiza produtos e preços → Contata vendedor fora da plataforma
-```
-
----
-
-## Schema do banco (campos relevantes)
-
-```
-usuarios   — matricula_validada BOOLEAN DEFAULT false
-lojas      — status VARCHAR ('pendente' | 'ativo' | 'pausado' | 'reprovado')
-produtos   — preco NUMERIC(10,2), imagem_url VARCHAR, categoria_id INT
-```
-
-**SQL para aplicar no Supabase:**
-```sql
-ALTER TABLE usuarios ADD COLUMN matricula_validada BOOLEAN DEFAULT FALSE;
-ALTER TABLE produtos ADD COLUMN preco NUMERIC(10,2) NOT NULL DEFAULT 0;
-ALTER TABLE produtos ADD COLUMN imagem_url VARCHAR;
-ALTER TABLE lojas ALTER COLUMN status TYPE VARCHAR;
-UPDATE lojas SET status = 'ativo' WHERE status = 'true';
-UPDATE lojas SET status = 'pausado' WHERE status = 'false';
-```
-
----
+- Nunca exibir perfil ou anúncio fora de `ativo` no catálogo; as queries filtram isso explicitamente
+- Verificação, moderação e status de conta mudam **só por RPC** no banco, nunca por `update` no cliente
+- Dados pessoais (e-mail, telefone, CPF, matrícula) não saem por `select`; só pelas RPCs previstas
 
 ## Fora do escopo desta versão
 
 - Pagamento interno, carrinho, checkout
-- Chat entre usuários
-- Notificações por email automáticas
-- Painel de admin com interface visual
-- Validação automática de matrícula via API externa
-- Sistema de avaliações ou reviews
+- Notificações por e-mail (os e-mails do Auth são só confirmação e recuperação de senha)

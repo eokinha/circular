@@ -38,6 +38,7 @@ import type {
   SituacaoConta,
 } from "@/types";
 import { inicioValidade } from "@/lib/anuncios";
+import { lerHorarios } from "@/lib/horarios";
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 // ---------------------------------------------------------------------------
@@ -224,7 +225,7 @@ export async function getPerfilLeitura(
     codigo_compartilhamento?: string | null;
   };
   return {
-    perfil: { ...raw.perfil, locais_entrega: raw.perfil.locais_entrega ?? [] },
+    perfil: { ...raw.perfil, locais_entrega: raw.perfil.locais_entrega ?? [], horarios: lerHorarios(raw.perfil.horarios) },
     produtos: (raw.produtos ?? []).map((p) => ({ ...p, preco: Number(p.preco) })),
     mesmoCampus: raw.mesmo_campus,
     ehDono: raw.eh_dono ?? false,
@@ -281,7 +282,7 @@ export async function getAnuncioLeitura(
     codigoCompartilhamento: raw.codigo_compartilhamento ?? null,
     favoritado: raw.favoritado ?? false,
     anuncio: { ...raw.anuncio, preco: Number(raw.anuncio.preco) },
-    loja: { ...loja, locais_entrega: loja.locais_entrega ?? [] },
+    loja: { ...loja, locais_entrega: loja.locais_entrega ?? [], horarios: lerHorarios(loja.horarios) },
     outros: (raw.outros ?? []).map((p) => ({ ...p, preco: Number(p.preco) })),
   };
 }

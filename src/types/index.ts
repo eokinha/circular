@@ -48,6 +48,7 @@ export interface Loja {
   tiktok_url: string | null;
   whatsapp: string | null;
   locais_entrega: string[];
+  horarios: HorarioDisponivel[]; // dias e horários no campus (migração 28)
 }
 
 // Loja como aparece para outros alunos: o telefone só sai pela RPC contato_vendedor
@@ -118,6 +119,13 @@ export interface UsuarioModeracao {
   moderacao_motivo: string | null;
   anuncios_ativos: number;
   denuncias_abertas: number;
+}
+
+// Faixa de horário em que o aluno está no campus (lojas.horarios; dia 0 = domingo … 6 = sábado)
+export interface HorarioDisponivel {
+  dia: number;
+  inicio: string; // "HH:MM"
+  fim: string;
 }
 
 export type AcaoModeracaoConta = "suspender" | "bloquear" | "reativar";
@@ -247,6 +255,7 @@ export interface LojaDoAnuncio {
   descricao: string | null;
   avatar_url: string | null;
   locais_entrega: string[];
+  horarios: HorarioDisponivel[]; // dias e horários no campus (migração 28)
   verificada: boolean;
   instituicao_nome: string | null;
 }

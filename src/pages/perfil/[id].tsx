@@ -1,3 +1,4 @@
+import HorariosCampus from "@/components/HorariosCampus";
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import {
@@ -254,6 +255,12 @@ export default function PerfilPublicoPage({
                   </div>
                 ))}
               </dl>
+
+              {perfil.horarios.length > 0 && (
+                <div className="mt-5">
+                  <HorariosCampus horarios={perfil.horarios} />
+                </div>
+              )}
 
               {perfil.locais_entrega && perfil.locais_entrega.length > 0 && (
                 <div className="mt-5 flex items-center gap-2 flex-wrap">

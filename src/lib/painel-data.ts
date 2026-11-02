@@ -78,6 +78,7 @@ export async function getPainelServerSideProps(
       instagram_url: "@lucas_eng",
       tiktok_url: null,
       locais_entrega: ["RU Central", "Biblioteca Universitária", "Centro de Vivência"],
+      horarios: [{ dia: 1, inicio: "10:00", fim: "12:00" }, { dia: 3, inicio: "14:00", fim: "16:00" }],
     };
     const produtosIniciais = await getProdutosPrivados(1, serverSupabase);
     const favoritosIniciais = await getProdutosFavoritos(1, serverSupabase);

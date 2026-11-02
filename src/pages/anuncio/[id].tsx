@@ -1,3 +1,4 @@
+import HorariosCampus from "@/components/HorariosCampus";
 import { useCallback, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
@@ -285,6 +286,8 @@ export default function AnuncioPage({ leitura, favoritos, perguntas, notaVendedo
                 )}
               </span>
             </div>
+
+            <HorariosCampus horarios={loja.horarios} />
 
             {loja.locais_entrega.length > 0 && (
               <div className="flex items-center gap-2 flex-wrap">

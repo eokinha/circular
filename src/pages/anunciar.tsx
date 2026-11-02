@@ -81,6 +81,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
       instagram_url: null,
       tiktok_url: null,
       locais_entrega: ["RU Central", "Biblioteca Universitária"],
+      horarios: [],
     };
     return {
       props: {

@@ -100,7 +100,8 @@ usuarios       — id, auth_id (uuid → auth.users), nome, sobrenome, email, pa
                  matricula_validada (bool), matricula_status (pendente|verificado|rejeitado), instituicoes_id,
                  status (ativo|bloqueado), is_admin (bool), criado_em, termos_aceitos_em
 lojas          — id, usuario_id (UNIQUE), nome (nome público, calculado), nome_exibicao (marca opcional), descricao, contato, status (pendente|ativo|pausado|reprovado), criado_em, avatar_url, capa_url,
-                 slug, instagram_url, tiktok_url, whatsapp, locais_entrega (text[])
+                 slug, instagram_url, tiktok_url, whatsapp, locais_entrega (text[]),
+                 horarios (jsonb: [{dia 0-6, inicio, fim "HH:MM"}], regra horarios_validos)
 produtos       — id, loja_id, nome, descricao, preco (numeric), imagem_url, status (ativo|pausado|vendido), criado_em, categoria_id,
                  destaque (bool — impulsionado na home, só admin), aceita_troca (bool), renovado_em, vendido_em
 categorias     — id, nome, parent_id (2 níveis), icone
@@ -136,7 +137,7 @@ Storage (buckets públicos; caminho relativo ao bucket):
 ### Migrações
 
 Aplicadas no projeto de dev, nesta ordem: `setup_completo.sql` (histórico), `00` (alinha banco legado),
-`01`, `009`, `02`, `04`, `05` … `27`. Toda mudança de schema vira um arquivo novo em `db/migrations/`.
+`01`, `009`, `02`, `04`, `05` … `28`. Toda mudança de schema vira um arquivo novo em `db/migrations/`.
 A `16` (regras do MVP) está documentada em `docs/auditoria-mvp.md`; a `18` é o endurecimento
 pós-pentest (grants mínimos, anti-raspagem, cadastro acadêmico no banco, limites e URLs de imagem);
 a `19` fixa cada aluno no campus do próprio e-mail (ver "Campus" abaixo); a `20` cria o código do QR code da loja, a `21` libera esse código a qualquer aluno logado, a `22`
@@ -144,7 +145,7 @@ cria as RPCs da página do anúncio, a `23` separa nome pessoal e nome de exibi�
 cria perguntas nos anúncios e avaliação do vendedor com moderação externa (ver "Perguntas e avaliações"); a `25`
 deixa o autor apagar o próprio comentário e cria a denúncia de comentários; a `26` cria o chat, torna o WhatsApp
 opcional e define a retenção e os registros de acesso (ver "Chat" e "Retenção"); a `27` troca a aprovação de matrícula
-pela moderação de contas (ver "Moderação de contas").
+pela moderação de contas (ver "Moderação de contas"); a `28` cria os dias e horários no campus (`lojas.horarios`).
 
 ### Segurança (RLS e triggers)
 
@@ -307,6 +308,9 @@ pela moderação de contas (ver "Moderação de contas").
 - **Nome público** (`lojas.nome`): calculado pelo trigger `definir_nome_publico_loja` = nome de exibição ou nome + sobrenome.
   O app lê sempre `lojas.nome` (cards, anúncio, perfil, QR); nunca gravar direto (sem grant)
 - Textos para o aluno falam em "perfil", não em "loja" (a tabela continua `lojas`)
+- **Dias e horários no campus** (`lojas.horarios`, migração 28): o aluno marca em Meus dados (`EditorHorarios`, até 2 faixas por dia);
+  aparecem no perfil e no anúncio (`HorariosCampus`, agrupando dias seguidos). Regra do banco `horarios_validos()`
+  espelhada em `problemaHorarios` (`src/lib/horarios.ts`): até 14 faixas, início antes do fim, sem sobreposição — mudar os dois juntos
 
 ### Perguntas e avaliações (migração 24)
 - **Perguntas**: aluno do mesmo campus pergunta no anúncio disponível (até 20 por dia); só o dono responde, uma vez
