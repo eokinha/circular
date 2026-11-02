@@ -78,9 +78,9 @@ Passaram: botões só de ícone com `aria-label`, nenhum `<div onClick>`, foco v
 1. **Um PR rápido de conteúdo e acessibilidade** (itens 1, 2, 3, 13, 14, 16, 17, 18): só front-end, baixo risco.
 2. **Carrossel do hero** (item 4): pausa, `prefers-reduced-motion` e `aria-live` só na troca manual.
 3. **Painel do Supabase**: ligar a proteção de senha vazada (item 5).
-4. **Migração 28 — higiene de permissões e índices** (itens 6, 8, 10): revogar `EXECUTE` sobrando, exigir aceite dos Termos,
+4. **Migração 29 — higiene de permissões e índices** (itens 6, 8, 10): revogar `EXECUTE` sobrando, exigir aceite dos Termos,
    criar os 5 índices. Rodar `get_advisors` depois.
-5. **Migração 29 — helpers fora da API** (itens 7 e 11): mover helpers de política para `privado`, consolidar políticas;
+5. **Migração 30 — helpers fora da API** (itens 7 e 11): mover helpers de política para `privado`, consolidar políticas;
    precisa de teste das políticas campus a campus.
 6. **SEO das páginas públicas** (item 15) e o **plano de performance** (`docs/plano-otimizacao-next.md`).
 
