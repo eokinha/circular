@@ -35,6 +35,10 @@ export default function App({ Component, pageProps, router }: AppProps) {
       {/* Título padrão da rota; o <title> da própria página (anúncio, perfil, painel) tem prioridade */}
       <Head>
         <title>{tituloDaRota(router.pathname)}</title>
+        {/* Favicon: símbolo branco sobre petróleo (fonte: public/icon.svg; .ico e apple-touch gerados a partir dele) */}
+        <link rel="icon" href="/favicon.ico" sizes="48x48" />
+        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </Head>
       {/* Google Analytics (GA4) */}
       <Script
