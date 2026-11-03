@@ -1,9 +1,23 @@
 import { createServerClient } from "@supabase/ssr";
+import type { User } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 import { urlLogin } from "@/lib/avisos-login";
 import { destinoCompartilhado } from "@/lib/compartilhar";
+import { cookiesSessaoInvalidos } from "@/lib/cookies-sessao";
 
 export async function middleware(request: NextRequest) {
+  // Cookie de sessão corrompido derruba o @supabase/ssr (HTTP 500 em qualquer página): some do request
+  // (o getServerSideProps também não vê) e é apagado na resposta, e o aluno segue como visitante.
+  const cookiesRuins = cookiesSessaoInvalidos(request.cookies.getAll());
+  cookiesRuins.forEach((name) => request.cookies.delete(name));
+  const cookiesGravados = new Set<string>();
+  const finalizar = (res: NextResponse) => {
+    cookiesRuins
+      .filter((name) => !cookiesGravados.has(name))
+      .forEach((name) => res.cookies.set(name, "", { path: "/", maxAge: 0 }));
+    return res;
+  };
+
   let response = NextResponse.next({ request });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -12,7 +26,7 @@ export async function middleware(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
-    return response;
+    return finalizar(response);
   }
 
   const supabase = createServerClient(
@@ -26,17 +40,24 @@ export async function middleware(request: NextRequest) {
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           response = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookiesGravados.add(name);
+            response.cookies.set(name, value, options);
+          });
         },
       },
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Rede de segurança: falha inesperada ao ler a sessão não pode derrubar a página; segue como visitante.
+  let user: User | null = null;
+  try {
+    ({
+      data: { user },
+    } = await supabase.auth.getUser());
+  } catch (erro) {
+    console.error("middleware: falha ao ler a sessão do Supabase", erro);
+  }
 
   // Proteção de rotas
   const isAuthPage =
@@ -59,17 +80,17 @@ export async function middleware(request: NextRequest) {
   // Chat: visitante vai para o login e volta para a conversa
   if (!user && request.nextUrl.pathname.startsWith("/mensagens")) {
     const destino = request.nextUrl.pathname + request.nextUrl.search;
-    return NextResponse.redirect(new URL(urlLogin("mensagens", destino), request.url));
+    return finalizar(NextResponse.redirect(new URL(urlLogin("mensagens", destino), request.url)));
   }
 
   if (!user && isProtectedRoute) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return finalizar(NextResponse.redirect(new URL("/login", request.url)));
   }
 
   if (!user && isCatalogo) {
     const destino = request.nextUrl.pathname + request.nextUrl.search;
     const aviso = destinoCompartilhado(destino)?.tipo ?? "catalogo";
-    return NextResponse.redirect(new URL(urlLogin(aviso, destino), request.url));
+    return finalizar(NextResponse.redirect(new URL(urlLogin(aviso, destino), request.url)));
   }
 
   // /admin exige usuarios.is_admin (as RPCs de moderação também checam no banco).
@@ -77,15 +98,15 @@ export async function middleware(request: NextRequest) {
   if (user && request.nextUrl.pathname.startsWith("/admin")) {
     const { data: isAdmin } = await supabase.rpc("is_admin");
     if (isAdmin !== true) {
-      return NextResponse.redirect(new URL("/", request.url));
+      return finalizar(NextResponse.redirect(new URL("/", request.url)));
     }
   }
 
   if (user && isAuthPage) {
-    return NextResponse.redirect(new URL("/", request.url));
+    return finalizar(NextResponse.redirect(new URL("/", request.url)));
   }
 
-  return response;
+  return finalizar(response);
 }
 
 export const config = {
