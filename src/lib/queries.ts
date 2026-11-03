@@ -6,12 +6,17 @@ import type {
   ChamadoAdminLeitura,
   ChamadoLeitura,
   ChamadoResumo,
+  FilaChamadosAdmin,
   MensagemChamado,
   StatusChamado,
   AnuncioLeitura,
   Categoria,
   CategoriaComFilhos,
   ConteudoModeracao,
+  ContasPagina,
+  FiltroContas,
+  LojasPagina,
+  ProdutosPagina,
   ConversaDenunciada,
   ConversaLeitura,
   ConversaResumo,
@@ -628,23 +633,47 @@ export async function verificarMatriculaInstantanea(
   };
 }
 
-export async function getUsuariosParaModeracao(
+// /admin/contas: 20 por página, filtro e busca no banco (migração 35)
+export async function getContasPagina(
+  filtro: FiltroContas,
+  busca: string,
+  pagina: number,
   client: SupabaseClient = defaultClient
-): Promise<UsuarioModeracao[]> {
-  const { data, error } = await client.rpc("admin_listar_usuarios");
+): Promise<ContasPagina> {
+  const { data, error } = await client.rpc("admin_contas_pagina", {
+    p_filtro: filtro,
+    p_busca: busca || null,
+    p_pagina: pagina,
+  });
   if (error) throw error;
+  const r = data as ContasPagina;
+  const c = r.contagens ?? {};
+  return {
+    itens: ((r.itens ?? []) as UsuarioModeracao[]).map(mapearUsuarioModeracao),
+    total: Number(r.total ?? 0),
+    pagina: Number(r.pagina ?? pagina),
+    por_pagina: Number(r.por_pagina ?? 20),
+    contagens: {
+      todas: Number(c.todas ?? 0),
+      ativa: Number(c.ativa ?? 0),
+      suspensa: Number(c.suspensa ?? 0),
+      bloqueada: Number(c.bloqueada ?? 0),
+      denuncias: Number(c.denuncias ?? 0),
+    },
+  };
+}
 
-  return ((data ?? []) as UsuarioModeracao[]).map((u) => ({
+function mapearUsuarioModeracao(u: UsuarioModeracao): UsuarioModeracao {
+  return {
     ...u,
     telefone: u.telefone || "",
     matricula: u.matricula || "",
     matricula_status: u.matricula_status || "pendente",
-    instituicao_nome: u.instituicao_nome ?? undefined,
-    loja_id: u.loja_id ?? undefined,
+    // instituicao_nome e loja_id ficam null quando faltam (undefined não serializa no getServerSideProps)
     status: u.status || "ativo",
     anuncios_ativos: Number(u.anuncios_ativos ?? 0),
     denuncias_abertas: Number(u.denuncias_abertas ?? 0),
-  }));
+  };
 }
 
 // /admin/contas: suspender (com prazo em dias), bloquear (sem prazo) ou reativar. Devolve o fim da suspensão.
@@ -681,19 +710,67 @@ export async function getMinhaSituacaoConta(client: SupabaseClient = defaultClie
   return ((data ?? []) as SituacaoConta[])[0] ?? null;
 }
 
-export async function getLojasParaModeracao(
+// /admin/lojas, aba Perfis: 20 por página, status e busca no banco (migração 35)
+export async function getLojasPagina(
+  status: LojaStatus | null,
+  busca: string,
+  pagina: number,
   client: SupabaseClient = defaultClient
-): Promise<LojaModeracao[]> {
-  const { data, error } = await client.rpc("admin_listar_lojas");
+): Promise<LojasPagina> {
+  const { data, error } = await client.rpc("admin_lojas_pagina", {
+    p_status: status,
+    p_busca: busca || null,
+    p_pagina: pagina,
+  });
   if (error) throw error;
+  const r = data as LojasPagina;
+  const c = r.contagens ?? {};
+  return {
+    itens: ((r.itens ?? []) as LojaModeracao[]).map((l) => ({
+      ...l,
+      total_produtos: Number(l.total_produtos),
+      produtos_ativos: Number(l.produtos_ativos),
+      produtos_vendidos: Number(l.produtos_vendidos),
+      total_interesses: Number(l.total_interesses),
+    })),
+    total: Number(r.total ?? 0),
+    pagina: Number(r.pagina ?? pagina),
+    por_pagina: Number(r.por_pagina ?? 20),
+    contagens: {
+      todos: Number(c.todos ?? 0),
+      ativo: Number(c.ativo ?? 0),
+      pendente: Number(c.pendente ?? 0),
+      pausado: Number(c.pausado ?? 0),
+      reprovado: Number(c.reprovado ?? 0),
+    },
+  };
+}
 
-  return ((data ?? []) as LojaModeracao[]).map((l) => ({
-    ...l,
-    total_produtos: Number(l.total_produtos),
-    produtos_ativos: Number(l.produtos_ativos),
-    produtos_vendidos: Number(l.produtos_vendidos),
-    total_interesses: Number(l.total_interesses),
-  }));
+// /admin/lojas, aba Anúncios: 20 por página, impulsionados primeiro (migração 35)
+export async function getProdutosPagina(
+  apenasDestaque: boolean,
+  busca: string,
+  pagina: number,
+  client: SupabaseClient = defaultClient
+): Promise<ProdutosPagina> {
+  const { data, error } = await client.rpc("admin_produtos_pagina", {
+    p_destaque: apenasDestaque,
+    p_busca: busca || null,
+    p_pagina: pagina,
+  });
+  if (error) throw error;
+  const r = data as ProdutosPagina;
+  return {
+    itens: ((r.itens ?? []) as ProdutoModeracao[]).map((p) => ({
+      ...p,
+      preco: Number(p.preco),
+      loja_nome: p.loja_nome ?? "—",
+    })),
+    total: Number(r.total ?? 0),
+    pagina: Number(r.pagina ?? pagina),
+    por_pagina: Number(r.por_pagina ?? 20),
+    total_destaques: Number(r.total_destaques ?? 0),
+  };
 }
 
 export async function getProdutosParaModeracao(
@@ -1135,13 +1212,28 @@ export async function abrirChamado(dados: {
   return postarApi<{ id: string; protocolo: string }>("/api/suporte/abrir", dados);
 }
 
-export async function getChamadosAdmin(
-  status: StatusChamado | null = null,
+// Fila paginada (20 por página; migração 34)
+export async function getFilaChamadosAdmin(
+  status: StatusChamado | null,
+  pagina: number,
   client: SupabaseClient = defaultClient
-): Promise<ChamadoAdmin[]> {
-  const { data, error } = await client.rpc("admin_listar_chamados", { p_status: status });
+): Promise<FilaChamadosAdmin> {
+  const { data, error } = await client.rpc("admin_fila_chamados", { p_status: status, p_pagina: pagina });
   if (error) throw error;
-  return ((data ?? []) as ChamadoAdmin[]).map(mapearChamado);
+  const fila = data as FilaChamadosAdmin;
+  const c = fila.contagens ?? {};
+  return {
+    itens: ((fila.itens ?? []) as ChamadoAdmin[]).map(mapearChamado),
+    total: Number(fila.total ?? 0),
+    pagina: Number(fila.pagina ?? pagina),
+    por_pagina: Number(fila.por_pagina ?? 20),
+    contagens: {
+      aberto: Number(c.aberto ?? 0),
+      em_atendimento: Number(c.em_atendimento ?? 0),
+      resolvido: Number(c.resolvido ?? 0),
+      todos: Number(c.todos ?? 0),
+    },
+  };
 }
 
 export async function getChamadoAdmin(

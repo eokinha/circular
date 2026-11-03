@@ -2,6 +2,7 @@
 // Os limites e as categorias espelham os CHECK de chamados/chamado_mensagens e as RPCs: mudar os dois juntos.
 // O envio pelo Resend fica em src/lib/email-resend.ts (só servidor).
 import type { CategoriaChamado, StatusChamado } from "@/types";
+import { caminhoComQuery } from "./paginacao.ts";
 
 // Endereço único do suporte (mailto: no login, /ajuda, Footer e Política de Privacidade; reply-to dos e-mails)
 export const EMAIL_SUPORTE = "suporte@eokinha.com.br";
@@ -64,6 +65,11 @@ export function linkMailtoSuporte(assunto?: string): string {
 
 export function caminhoChamado(chamadoId: string, equipe = false): string {
   return `${equipe ? "/admin/suporte" : "/painel/suporte"}?chamado=${encodeURIComponent(chamadoId)}`;
+}
+
+// Endereço da fila do admin (20 por página, migração 34) mantendo filtro, página e chamado aberto
+export function caminhoFilaAdmin(opts: { status: StatusChamado | "todos"; pagina?: number; chamado?: string | null }): string {
+  return caminhoComQuery("/admin/suporte", { status: opts.status, pagina: opts.pagina, chamado: opts.chamado });
 }
 
 export function escaparHtml(texto: string): string {

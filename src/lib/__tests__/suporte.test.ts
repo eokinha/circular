@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   CATEGORIAS_CHAMADO,
+  caminhoFilaAdmin,
   EMAIL_SUPORTE,
   caminhoChamado,
   categoriaValida,
@@ -91,4 +92,13 @@ test("e-mail de resolução traz período e última resposta (opcional)", () => 
   const sem = emailResolucaoAluno({ ...BASE, abertoEm: "2026-11-01T12:00:00Z", resolvidoEm: "2026-11-02T15:30:00Z" });
   assert.doesNotMatch(sem.texto, /Última resposta/);
   assert.match(sem.html, /Olá!/);
+});
+
+test("caminhoFilaAdmin mantém filtro, página e chamado", () => {
+  assert.equal(caminhoFilaAdmin({ status: "aberto" }), "/admin/suporte?status=aberto");
+  assert.equal(caminhoFilaAdmin({ status: "todos", pagina: 1 }), "/admin/suporte?status=todos");
+  assert.equal(
+    caminhoFilaAdmin({ status: "resolvido", pagina: 3, chamado: "abc" }),
+    "/admin/suporte?status=resolvido&pagina=3&chamado=abc"
+  );
 });

@@ -78,6 +78,7 @@ src/
 │                         # BotaoContato (WhatsApp via RPC), BotaoDenunciar,
 │                         # ConfiraEmail (pós-cadastro/senha), GuiaEmail + AjudaEmailFaculdade (tutorial do e-mail),
 │                         # BotaoCompartilhar (QR code e link de loja ou anúncio, para qualquer aluno logado)
+│   ├── admin/            # Paginacao (Anterior/Próxima das listas do admin)
 │   ├── painel/           # PainelEstudante (cabeçalho/visão geral) + SecaoAnuncios, SecaoFavoritos, SecaoPerfil
 │   └── chat/             # CaixaEntrada (lista + conversa), ListaConversas, ConversaChat; BotaoConversar abre a conversa
 ├── lib/
@@ -87,6 +88,7 @@ src/
 │   ├── painel-routes.ts  # Rotas/abas do painel
 │   ├── storage.ts        # Helpers de upload para Supabase Storage
 │   ├── cache.ts          # Cache-Control das páginas públicas (só para visitante sem cookie de sessão)
+│   ├── paginacao.ts      # Paginação das telas de admin (20 por página, ?pagina=/?q= da URL)
 │   ├── contato.ts        # Link/formatação do WhatsApp
 │   ├── avisos-login.ts   # Avisos fixos do /login (?aviso=) e urlLogin
 │   ├── senha-vazada.ts   # Checagem de senha vazada (HIBP, k-anonimato) no cadastro e redefinição
@@ -164,7 +166,7 @@ cria perguntas nos anúncios e avaliação do vendedor com moderação externa (
 deixa o autor apagar o próprio comentário e cria a denúncia de comentários; a `26` cria o chat, torna o WhatsApp
 opcional e define a retenção e os registros de acesso (ver "Chat" e "Retenção"); a `27` troca a aprovação de matrícula
 pela moderação de contas (ver "Moderação de contas"); a `28` cria os dias e horários no campus (`lojas.horarios`) , a `29` deixa o aluno escolher o nome de usuário (ver "Nome do aluno") e a `30` fecha na API três funções internas (triggers de nome e `usuario_publico`).
-A `31` cria o canal de suporte (ver "Suporte"; a `33` estende a retenção a chamado abandonado) e a `32` deixa o cadastro aberto só na Unijorge e na Zarns (piloto; ver "Campus").
+A `31` cria o canal de suporte (ver "Suporte"; a `33` estende a retenção a chamado abandonado e a `34` pagina a fila; a `35` pagina `/admin/contas` e `/admin/lojas`) e a `32` deixa o cadastro aberto só na Unijorge e na Zarns (piloto; ver "Campus").
 
 ### Segurança (RLS e triggers)
 
@@ -221,10 +223,17 @@ A `31` cria o canal de suporte (ver "Suporte"; a `33` estende a retenção a cha
     foto só com o código da loja dona, para o `/login?aviso=anuncio` e a prévia do WhatsApp)
   - `is_admin()` → usado pelo middleware para liberar `/admin`
   - `denunciar(...)` → `denunciar` (exige login; máx. 10 por dia) · `excluir_minha_conta()` → `excluirMinhaConta`
-  - `admin_listar_usuarios()` → `getUsuariosParaModeracao` · `admin_moderar_conta(p_usuario_id, p_acao, p_motivo, p_dias)` → `moderarConta`
+  - `admin_contas_pagina(p_filtro, p_busca, p_pagina)` → `getContasPagina` (migração 35; substitui `admin_listar_usuarios`)
+    · `admin_moderar_conta(p_usuario_id, p_acao, p_motivo, p_dias)` → `moderarConta`
     · `admin_historico_conta(p_usuario_id)` → `getHistoricoConta` (`admin_moderar_matricula` segue no banco, sem tela)
   - `minha_situacao_conta()` → `getMinhaSituacaoConta` (prazo e motivo da suspensão/bloqueio para o aviso do painel)
-  - `admin_listar_lojas()` / `admin_moderar_loja(p_loja_id, p_status)` / `admin_definir_destaque(p_produto_id, p_destaque)`
+  - `admin_lojas_pagina(p_status, p_busca, p_pagina)` → `getLojasPagina` e `admin_produtos_pagina(p_destaque, p_busca, p_pagina)`
+    → `getProdutosPagina` (migração 35; substituem `admin_listar_lojas` e a leitura de todos os produtos em `/admin/lojas`)
+    / `admin_moderar_loja(p_loja_id, p_status)` / `admin_definir_destaque(p_produto_id, p_destaque)`
+  - Paginação do admin (migrações 34 e 35): 20 por página, filtro/busca/página na URL e lidos no `getServerSideProps`;
+    helpers em `src/lib/paginacao.ts` (`POR_PAGINA_ADMIN` espelha `v_por_pagina` das RPCs) e `components/admin/Paginacao.tsx`.
+    A busca usa `padrao_busca_admin` (ILIKE com `%`/`_` escapados, até 100 caracteres). `admin_listar_usuarios`,
+    `admin_listar_lojas` e `admin_listar_chamados` ficaram no banco só para o deploy anterior: remover numa migração futura
   - `admin_listar_denuncias()` / `admin_resolver_denuncia(p_denuncia_id, p_status)` — todas as `admin_*` exigem `is_admin()`
   - `perguntas_do_anuncio(p_produto_id)` → `getPerguntasDoAnuncio` · `avaliacoes_do_vendedor(p_loja_id)` → `getAvaliacoesDoVendedor`
   - `criar_pergunta` / `responder_pergunta` / `avaliar_vendedor`: chamadas só pelas rotas `/api` (o cliente usa
@@ -241,7 +250,8 @@ A `31` cria o canal de suporte (ver "Suporte"; a `33` estende a retenção a cha
   - `registrar_acesso('login')` → `registrarAcesso` (chamado no login; as RPCs do chat registram sozinhas)
   - `anuncio_leitura` e `perfil_leitura` devolvem `tem_whatsapp` (o botão do WhatsApp só aparece com número)
   - Suporte (migração 31): `abrir_chamado` · `enviar_mensagem_chamado` · `meus_chamados` · `chamado_leitura` ·
-    `mensagens_do_chamado` · `marcar_chamado_lido` · `admin_listar_chamados(p_status)` · `admin_ler_chamado` ·
+    `mensagens_do_chamado` · `marcar_chamado_lido` · `admin_fila_chamados(p_status, p_pagina)` → `getFilaChamadosAdmin`
+    (20 por página, migração 34; `admin_listar_chamados` da 31 ficou só para o deploy anterior) · `admin_ler_chamado` ·
     `admin_responder_chamado` · `admin_status_chamado`. Abrir, responder e mudar status passam pelas rotas
     `/api/suporte/{abrir,responder,status}`, que mandam o e-mail (`src/lib/email-resend.ts`)
 - Cadastro só com e-mail de faculdade participante também no banco: `handle_new_user` rejeita o signup se
@@ -317,7 +327,7 @@ A `31` cria o canal de suporte (ver "Suporte"; a `33` estende a retenção a cha
 - Suspender ou bloquear aluno (admin) reprova a loja e pausa os anúncios; reativar volta a loja para `ativo` (anúncios seguem pausados)
 
 ### Moderação de contas (migração 27)
-- `/admin/contas`: lista todas as contas com situação, anúncios ativos e denúncias abertas contra o aluno; filtros e busca
+- `/admin/contas`: lista as contas (20 por página) com situação, anúncios ativos e denúncias abertas contra o aluno; filtros e busca no banco
 - **Suspender**: `status = 'bloqueado'` com `usuarios.bloqueado_ate` (1 a 90 dias; a tela oferece `DIAS_SUSPENSAO` de `src/lib/contas.ts`).
   O pg_cron `circular-fim-suspensoes` (`privado.encerrar_suspensoes()`, de hora em hora) reativa no fim do prazo
 - **Bloquear**: `status = 'bloqueado'` sem prazo, até a equipe reativar. **Reativar**: volta a `ativo`
@@ -406,6 +416,7 @@ A `31` cria o canal de suporte (ver "Suporte"; a `33` estende a retenção a cha
   em chat. O e-mail formaliza: protocolo (`CIR-AAAA-NNNNN`) ao aluno e aviso à equipe na abertura, cada resposta da equipe
   e a resolução. Remetente `nao-responda@eokinha.com.br`, reply-to `suporte@eokinha.com.br` (`EMAIL_SUPORTE` em `src/lib/suporte.ts`)
 - Quem não consegue entrar usa o `mailto:` do login, do `/ajuda` e do Footer
+- Fila do admin: 20 por página, filtro e página na URL (`?status=&pagina=`, `caminhoFilaAdmin`); ver "Paginação do admin"
 - Status `aberto | em_atendimento | resolvido`; resolvido não aceita mensagem do aluno (abre outro) e a resposta da equipe reabre.
   O aluno não vê qual admin respondeu (só `de_equipe`)
 - Limites: 3 chamados em andamento e 5 por dia; 10 mensagens/min e 100/dia do aluno; título 5–120, primeira mensagem 10–2000
