@@ -1,11 +1,13 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import type { GetServerSideProps } from "next";
-import { Ban, Check, Clock, ExternalLink, Flag, History, TriangleAlert, Users } from "lucide-react";
+import { Ban, Check, Clock, ExternalLink, Flag, History, Search, TriangleAlert, Users } from "lucide-react";
+import Paginacao from "@/components/admin/Paginacao";
 import { useConfirmacao } from "@/components/ModalConfirmacao";
 import { createServerClient } from "@/lib/supabase";
-import { getHistoricoConta, getUsuariosParaModeracao, moderarConta } from "@/lib/queries";
+import { getContasPagina, getHistoricoConta, moderarConta } from "@/lib/queries";
 import {
   DIAS_SUSPENSAO,
   MOTIVO_MODERACAO,
@@ -15,14 +17,26 @@ import {
   situacaoDaConta,
   type Situacao,
 } from "@/lib/contas";
-import type { EventoModeracaoConta, UsuarioModeracao } from "@/types";
+import { BUSCA_ADMIN_MAX, buscaDaQuery, caminhoComQuery, paginaDaQuery, totalDePaginas } from "@/lib/paginacao";
+import type { ContasPagina, EventoModeracaoConta, FiltroContas, UsuarioModeracao } from "@/types";
+
+type Filtro = FiltroContas;
 
 interface Props {
-  usuariosIniciais: UsuarioModeracao[];
+  contas: ContasPagina;
+  filtro: Filtro;
+  busca: string;
 }
 
-// Moderação de contas (migração 27). A matrícula é verificada pelo e-mail da faculdade, então aqui a equipe
+const FILTROS_VALIDOS: Filtro[] = ["todas", "ativa", "suspensa", "bloqueada", "denuncias"];
+
+function caminhoContas(filtro: Filtro, busca: string, pagina = 1): string {
+  return caminhoComQuery("/admin/contas", { filtro: filtro === "todas" ? null : filtro, q: busca, pagina });
+}
+
+// Moderação de contas (migrações 27 e 35). A matrícula é verificada pelo e-mail da faculdade, então aqui a equipe
 // só suspende (com prazo), bloqueia (sem prazo) ou reativa contas. Só admin (middleware + RPC).
+// 20 por página; filtro, busca e página na URL (?filtro=&q=&pagina=).
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const serverSupabase = createServerClient(ctx);
   const {
@@ -32,11 +46,16 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     return { redirect: { destination: "/login", permanent: false } };
   }
 
-  const usuariosIniciais = await getUsuariosParaModeracao(serverSupabase);
-  return { props: { usuariosIniciais } };
+  const pedido = ctx.query.filtro;
+  const filtro: Filtro = FILTROS_VALIDOS.includes(pedido as Filtro) ? (pedido as Filtro) : "todas";
+  const busca = buscaDaQuery(ctx.query.q);
+  const contas = await getContasPagina(filtro, busca, paginaDaQuery(ctx.query.pagina), serverSupabase);
+  const ultima = totalDePaginas(contas.total, contas.por_pagina);
+  if (contas.pagina > ultima) {
+    return { redirect: { destination: caminhoContas(filtro, busca, ultima), permanent: false } };
+  }
+  return { props: { contas, filtro, busca } };
 };
-
-type Filtro = "todas" | Situacao | "denuncias";
 
 const FOCO = "focus-visible:outline-2 focus-visible:outline-petroleo focus-visible:outline-offset-2";
 const BOTAO_SECUNDARIO = `min-h-[44px] px-3 rounded-controle border border-borda-controle bg-superficie text-petroleo text-sm font-semibold hover:border-petroleo transition disabled:opacity-50 inline-flex items-center justify-center gap-1.5 ${FOCO}`;
@@ -161,10 +180,17 @@ function Historico({ eventos }: { eventos: EventoModeracaoConta[] }) {
   );
 }
 
-export default function AdminContasPage({ usuariosIniciais }: Props) {
-  const [usuarios, setUsuarios] = useState<UsuarioModeracao[]>(usuariosIniciais);
-  const [filtro, setFiltro] = useState<Filtro>("todas");
-  const [busca, setBusca] = useState("");
+export default function AdminContasPage({ contas, filtro, busca }: Props) {
+  const router = useRouter();
+  const [usuarios, setUsuarios] = useState<UsuarioModeracao[]>(contas.itens);
+  const [textoBusca, setTextoBusca] = useState(busca);
+  // Navegou para outra página/filtro/busca (novos props do getServerSideProps): recomeça do servidor
+  const [contasBase, setContasBase] = useState(contas);
+  if (contasBase !== contas) {
+    setContasBase(contas);
+    setUsuarios(contas.itens);
+    setTextoBusca(busca);
+  }
   const [form, setForm] = useState<{ id: number; acao: "suspender" | "bloquear" } | null>(null);
   const [historicos, setHistoricos] = useState<Record<number, EventoModeracaoConta[] | undefined>>({});
   const [historicoAberto, setHistoricoAberto] = useState<number | null>(null);
@@ -172,24 +198,14 @@ export default function AdminContasPage({ usuariosIniciais }: Props) {
   const [aviso, setAviso] = useState<{ tipo: "sucesso" | "erro"; texto: string } | null>(null);
   const { confirmar, modalConfirmacao } = useConfirmacao();
 
-  const contagem = useMemo(() => {
-    const c = { todas: usuarios.length, ativa: 0, suspensa: 0, bloqueada: 0, denuncias: 0 };
-    for (const u of usuarios) {
-      c[situacaoDaConta(u.status, u.bloqueado_ate)]++;
-      if (u.denuncias_abertas > 0) c.denuncias++;
-    }
-    return c;
-  }, [usuarios]);
+  // Contagens do servidor (com a busca aplicada); mudanças feitas aqui aparecem nelas ao recarregar
+  const contagem = contas.contagens;
+  const filtrados = usuarios;
 
-  const filtrados = useMemo(() => {
-    const termo = busca.trim().toLowerCase();
-    return usuarios.filter((u) => {
-      if (filtro === "denuncias" && u.denuncias_abertas === 0) return false;
-      if (filtro !== "todas" && filtro !== "denuncias" && situacaoDaConta(u.status, u.bloqueado_ate) !== filtro) return false;
-      if (!termo) return true;
-      return `${u.nome} ${u.sobrenome} ${u.email} ${u.instituicao_nome ?? ""}`.toLowerCase().includes(termo);
-    });
-  }, [usuarios, filtro, busca]);
+  function handleBuscar(e: React.FormEvent) {
+    e.preventDefault();
+    router.push(caminhoContas(filtro, textoBusca.trim()));
+  }
 
   function atualizar(id: number, alteracoes: Partial<UsuarioModeracao>) {
     setUsuarios((prev) => prev.map((u) => (u.id === id ? { ...u, ...alteracoes } : u)));
@@ -282,32 +298,37 @@ export default function AdminContasPage({ usuariosIniciais }: Props) {
           </p>
 
           <div className="flex flex-col gap-3 mb-6">
-            <div role="tablist" aria-label="Situação da conta" className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4">
+            <nav aria-label="Situação da conta" className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4">
               {FILTROS.map((f) => (
-                <button
+                <Link
                   key={f.valor}
-                  type="button"
-                  role="tab"
-                  aria-selected={filtro === f.valor}
-                  onClick={() => setFiltro(f.valor)}
-                  className={`px-4 min-h-[44px] rounded-pill text-sm font-semibold border shrink-0 transition ${FOCO} ${
+                  href={caminhoContas(f.valor, busca)}
+                  aria-current={filtro === f.valor ? "page" : undefined}
+                  className={`inline-flex items-center px-4 min-h-[44px] rounded-pill text-sm font-semibold border shrink-0 transition ${FOCO} ${
                     filtro === f.valor
                       ? "bg-petroleo border-petroleo text-white"
                       : "bg-superficie border-borda-controle text-tinta-suave hover:border-petroleo"
                   }`}
                 >
                   {f.rotulo} ({contagem[f.valor]})
-                </button>
+                </Link>
               ))}
-            </div>
-            <input
-              type="search"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar por nome, e-mail ou faculdade"
-              aria-label="Buscar contas"
-              className={`w-full sm:max-w-sm min-h-[44px] px-4 rounded-pill border border-borda-controle bg-superficie text-sm text-tinta placeholder:text-tinta-sutil ${FOCO}`}
-            />
+            </nav>
+            <form role="search" onSubmit={handleBuscar} className="flex gap-2 w-full sm:max-w-md">
+              <input
+                type="search"
+                value={textoBusca}
+                onChange={(e) => setTextoBusca(e.target.value)}
+                maxLength={BUSCA_ADMIN_MAX}
+                placeholder="Buscar por nome, e-mail ou faculdade"
+                aria-label="Buscar contas"
+                className={`flex-1 min-w-0 min-h-[44px] px-4 rounded-pill border border-borda-controle bg-superficie text-sm text-tinta placeholder:text-tinta-sutil ${FOCO}`}
+              />
+              <button type="submit" className={BOTAO_SECUNDARIO}>
+                <Search size={16} strokeWidth={1.75} aria-hidden="true" />
+                Buscar
+              </button>
+            </form>
           </div>
 
           {aviso && (
@@ -437,6 +458,13 @@ export default function AdminContasPage({ usuariosIniciais }: Props) {
               })}
             </ul>
           )}
+          <Paginacao
+            pagina={contas.pagina}
+            total={contas.total}
+            porPagina={contas.por_pagina}
+            rotulo="Páginas de contas"
+            hrefPagina={(n) => caminhoContas(filtro, busca, n)}
+          />
         </div>
       </div>
       {modalConfirmacao}

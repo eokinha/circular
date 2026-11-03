@@ -2,6 +2,7 @@
 // Os limites e as categorias espelham os CHECK de chamados/chamado_mensagens e as RPCs: mudar os dois juntos.
 // O envio pelo Resend fica em src/lib/email-resend.ts (só servidor).
 import type { CategoriaChamado, StatusChamado } from "@/types";
+import { caminhoComQuery } from "./paginacao.ts";
 
 // Endereço único do suporte (mailto: no login, /ajuda, Footer e Política de Privacidade; reply-to dos e-mails)
 export const EMAIL_SUPORTE = "suporte@eokinha.com.br";
@@ -66,26 +67,9 @@ export function caminhoChamado(chamadoId: string, equipe = false): string {
   return `${equipe ? "/admin/suporte" : "/painel/suporte"}?chamado=${encodeURIComponent(chamadoId)}`;
 }
 
-// Fila do admin: 20 por página (espelho de v_por_pagina em admin_fila_chamados, migração 34 — mudar os dois juntos)
-export const POR_PAGINA_CHAMADOS = 20;
-
-// ?pagina= da URL: inteiro >= 1; qualquer outra coisa vira 1
-export function paginaDaQuery(valor: unknown): number {
-  const n = typeof valor === "string" && /^\d{1,6}$/.test(valor) ? Number(valor) : 1;
-  return n >= 1 ? n : 1;
-}
-
-export function totalDePaginas(total: number, porPagina = POR_PAGINA_CHAMADOS): number {
-  return Math.max(1, Math.ceil(Math.max(0, total) / porPagina));
-}
-
-// Endereço da fila do admin mantendo filtro, página e chamado aberto (página 1 e "todos" ficam fora da URL)
+// Endereço da fila do admin (20 por página, migração 34) mantendo filtro, página e chamado aberto
 export function caminhoFilaAdmin(opts: { status: StatusChamado | "todos"; pagina?: number; chamado?: string | null }): string {
-  const params = new URLSearchParams();
-  params.set("status", opts.status);
-  if (opts.pagina && opts.pagina > 1) params.set("pagina", String(opts.pagina));
-  if (opts.chamado) params.set("chamado", opts.chamado);
-  return `/admin/suporte?${params.toString()}`;
+  return caminhoComQuery("/admin/suporte", { status: opts.status, pagina: opts.pagina, chamado: opts.chamado });
 }
 
 export function escaparHtml(texto: string): string {

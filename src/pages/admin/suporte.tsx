@@ -2,20 +2,15 @@ import { useCallback, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps } from "next";
-import { ChevronLeft, ChevronRight, LifeBuoy } from "lucide-react";
+import { LifeBuoy } from "lucide-react";
+import Paginacao from "@/components/admin/Paginacao";
 import ConversaSuporte from "@/components/suporte/ConversaSuporte";
 import { horarioMensagem } from "@/lib/chat";
 import { formatarPrazo } from "@/lib/contas";
+import { paginaDaQuery, totalDePaginas } from "@/lib/paginacao";
 import { createServerClient } from "@/lib/supabase";
 import { getChamadoAdmin, getFilaChamadosAdmin } from "@/lib/queries";
-import {
-  STATUS_CHAMADO,
-  caminhoFilaAdmin,
-  paginaDaQuery,
-  rotuloCategoria,
-  statusValido,
-  totalDePaginas,
-} from "@/lib/suporte";
+import { STATUS_CHAMADO, caminhoFilaAdmin, rotuloCategoria, statusValido } from "@/lib/suporte";
 import type { ChamadoAdmin, ChamadoAdminLeitura, FilaChamadosAdmin, StatusChamado } from "@/types";
 
 type Filtro = StatusChamado | "todos";
@@ -89,9 +84,6 @@ export default function AdminSuportePage({ fila, filtro, chamadoAberto }: Props)
   }
 
   const pagina = fila.pagina;
-  const ultimaPagina = totalDePaginas(fila.total, fila.por_pagina);
-  const inicio = fila.total === 0 ? 0 : (pagina - 1) * fila.por_pagina + 1;
-  const fim = Math.min(pagina * fila.por_pagina, fila.total);
 
   // Status mudou na conversa: a fila e as contagens acompanham sem recarregar (a ordem só muda ao recarregar)
   const aoMudarStatus = useCallback(
@@ -196,35 +188,13 @@ export default function AdminSuportePage({ fila, filtro, chamadoAberto }: Props)
                   })}
                 </ul>
               )}
-              {fila.total > fila.por_pagina && (
-                <nav aria-label="Páginas da fila" className="flex items-center justify-between gap-3 mt-4 text-sm">
-                  {pagina > 1 ? (
-                    <Link
-                      href={caminhoFilaAdmin({ status: filtro, pagina: pagina - 1, chamado: chamadoAberto?.id })}
-                      className={`inline-flex items-center gap-1 px-3 min-h-[44px] rounded-controle border border-borda-controle bg-superficie font-semibold text-tinta hover:border-petroleo ${FOCO}`}
-                    >
-                      <ChevronLeft size={16} strokeWidth={1.75} aria-hidden="true" />
-                      Anterior
-                    </Link>
-                  ) : (
-                    <span />
-                  )}
-                  <span className="text-tinta-suave" aria-live="polite">
-                    {inicio}–{fim} de {fila.total} · página {pagina} de {ultimaPagina}
-                  </span>
-                  {pagina < ultimaPagina ? (
-                    <Link
-                      href={caminhoFilaAdmin({ status: filtro, pagina: pagina + 1, chamado: chamadoAberto?.id })}
-                      className={`inline-flex items-center gap-1 px-3 min-h-[44px] rounded-controle border border-borda-controle bg-superficie font-semibold text-tinta hover:border-petroleo ${FOCO}`}
-                    >
-                      Próxima
-                      <ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" />
-                    </Link>
-                  ) : (
-                    <span />
-                  )}
-                </nav>
-              )}
+              <Paginacao
+                pagina={pagina}
+                total={fila.total}
+                porPagina={fila.por_pagina}
+                rotulo="Páginas da fila"
+                hrefPagina={(n) => caminhoFilaAdmin({ status: filtro, pagina: n, chamado: chamadoAberto?.id })}
+              />
             </div>
 
             <div>

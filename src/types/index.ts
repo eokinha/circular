@@ -428,12 +428,30 @@ export interface ChamadoAdmin extends ChamadoResumo {
   aluno: AlunoDoChamado | null;
 }
 
-export interface FilaChamadosAdmin {
-  itens: ChamadoAdmin[];
-  total: number; // do filtro atual
+// Página de uma lista do admin (migrações 34 e 35): total é o do filtro e da busca atuais
+export interface PaginaAdmin<T> {
+  itens: T[];
+  total: number;
   pagina: number;
   por_pagina: number;
+}
+
+export interface FilaChamadosAdmin extends PaginaAdmin<ChamadoAdmin> {
   contagens: Record<StatusChamado | "todos", number>;
+}
+
+export type FiltroContas = "todas" | "ativa" | "suspensa" | "bloqueada" | "denuncias";
+
+export interface ContasPagina extends PaginaAdmin<UsuarioModeracao> {
+  contagens: Record<FiltroContas, number>; // com a busca aplicada
+}
+
+export interface LojasPagina extends PaginaAdmin<LojaModeracao> {
+  contagens: Record<LojaStatus | "todos", number>; // com a busca aplicada
+}
+
+export interface ProdutosPagina extends PaginaAdmin<ProdutoModeracao> {
+  total_destaques: number; // de todo o site
 }
 
 export interface ChamadoAdminLeitura extends ChamadoAdmin {
