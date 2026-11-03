@@ -75,6 +75,20 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     return { notFound: true };
   }
 
+  // Endereço antigo ou id numérico → endereço atual (/perfil/{nome de usuário}), mantendo ?c= do QR code
+  const atual = "redirecionar" in resultado ? resultado.redirecionar : resultado.perfil.slug;
+  if (atual && atual !== idOuSlug) {
+    const query = new URLSearchParams();
+    Object.entries(ctx.query).forEach(([chave, valor]) => {
+      if (chave !== "id" && typeof valor === "string") query.set(chave, valor);
+    });
+    const busca = query.toString();
+    return { redirect: { destination: `/perfil/${encodeURIComponent(atual)}${busca ? `?${busca}` : ""}`, permanent: false } };
+  }
+  if ("redirecionar" in resultado) {
+    return { notFound: true };
+  }
+
   // Nota e avaliações do vendedor (migração 24); se falhar, o perfil abre sem elas
   const avaliacoes = await getAvaliacoesDoVendedor(resultado.perfil.id, supabase).catch(() => null);
 

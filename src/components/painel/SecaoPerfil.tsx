@@ -1,13 +1,16 @@
 import EditorHorarios from "@/components/EditorHorarios";
 import { lerHorarios, problemaHorarios } from "@/lib/horarios";
+import { DIAS_ENTRE_TROCAS_USERNAME, normalizarUsername, problemaUsername, USERNAME, usernamePadrao } from "@/lib/username";
 import { useState, useMemo } from "react";
 import {
   atualizarMeuNome,
+  definirUsername,
   excluirMinhaConta,
   solicitarTrocaEmail,
   solicitarVerificacaoMatricula,
   updateLoja,
   verificarMatriculaInstantanea,
+  verificarUsername,
 } from "@/lib/queries";
 import { normalizarTelefone } from "@/lib/contato";
 import { removerImagensDaConta, uploadImagemLoja } from "@/lib/storage";
@@ -142,6 +145,11 @@ export default function SecaoPerfil({
   const [sobrenome, setSobrenome] = useState(usuario?.sobrenome || "");
   const [nomeExibicao, setNomeExibicao] = useState(loja.nome_exibicao || "");
   const nomePublico = nomeExibicao.trim() || `${nomePessoal.trim()} ${sobrenome.trim()}`.trim() || loja.nome;
+  // Nome de usuário = lojas.slug, o link do perfil (migração 29)
+  const [username, setUsername] = useState(usernamePadrao(loja.slug) ? "" : loja.slug || "");
+  const [avisoUsername, setAvisoUsername] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
+  const usernameNovo = normalizarUsername(username);
+  const usernameMudou = usernameNovo !== "" && usernameNovo !== loja.slug;
   const [descricao, setDescricao] = useState(loja.descricao || "");
   const [whatsapp, setWhatsapp] = useState(loja.whatsapp || loja.contato || "");
   const [locais, setLocais] = useState<string[]>(loja.locais_entrega || []);
@@ -284,6 +292,14 @@ export default function SecaoPerfil({
       setMensagemPerfil({ tipo: "erro", texto: problemaExibicao });
       return;
     }
+    if (usernameMudou) {
+      const problema = problemaUsername(usernameNovo);
+      if (problema) {
+        setAvisoUsername({ tipo: "erro", texto: problema });
+        setMensagemPerfil({ tipo: "erro", texto: problema });
+        return;
+      }
+    }
     const problemaHorario = problemaHorarios(horarios);
     if (problemaHorario) {
       setMensagemPerfil({ tipo: "erro", texto: problemaHorario });
@@ -307,6 +323,14 @@ export default function SecaoPerfil({
         onNomeAtualizado(nomePessoal.trim(), sobrenome.trim());
       }
 
+      // Nome de usuário primeiro: se estiver em uso ou no intervalo de 30 dias, nada mais é salvo
+      if (usernameMudou) {
+        const gravado = await definirUsername(usernameNovo);
+        onLojaAtualizada({ slug: gravado });
+        setUsername(gravado);
+        setAvisoUsername(null);
+      }
+
       await updateLoja(loja.id, {
         nome_exibicao: nomeExibicao.trim() || null,
         descricao: descricao.trim(),
@@ -328,9 +352,10 @@ export default function SecaoPerfil({
 
       setMensagemPerfil({ tipo: "sucesso", texto: "Perfil atualizado." });
     } catch (err) {
+      // Erro do Supabase não é instância de Error, mas traz a mensagem do banco em message
       setMensagemPerfil({
         tipo: "erro",
-        texto: err instanceof Error ? err.message : "Erro ao salvar alterações.",
+        texto: (err as { message?: string })?.message || "Erro ao salvar alterações.",
       });
     } finally {
       setSalvandoPerfil(false);
@@ -459,6 +484,60 @@ export default function SecaoPerfil({
             </div>
           </div>
         )}
+
+        {/* Nome de usuário: o link do perfil (/perfil/{usuario}); o endereço antigo continua funcionando */}
+        <div>
+          <label htmlFor="perfil-username" className="block text-sm font-semibold text-tinta mb-1">
+            Nome de usuário
+          </label>
+          <div className="flex items-stretch rounded-controle border border-borda-controle bg-superficie focus-within:border-petroleo focus-within:outline-2 focus-within:outline-petroleo focus-within:outline-offset-2">
+            <span className="px-3 inline-flex items-center text-sm text-tinta-suave border-r border-borda-controle bg-pagina rounded-l-controle shrink-0">
+              /perfil/
+            </span>
+            <input
+              id="perfil-username"
+              type="text"
+              value={username}
+              maxLength={USERNAME.maximo + 1}
+              onChange={(e) => {
+                setUsername(e.target.value);
+                setAvisoUsername(null);
+              }}
+              onBlur={async () => {
+                if (!usernameMudou) return;
+                const local = problemaUsername(usernameNovo);
+                if (local) {
+                  setAvisoUsername({ tipo: "erro", texto: local });
+                  return;
+                }
+                try {
+                  const motivo = await verificarUsername(usernameNovo);
+                  setAvisoUsername(motivo ? { tipo: "erro", texto: motivo } : { tipo: "ok", texto: "Disponível." });
+                } catch {
+                  setAvisoUsername(null); // a checagem final acontece ao salvar
+                }
+              }}
+              placeholder={loja.slug || "seu.nome"}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              aria-describedby="perfil-username-ajuda"
+              aria-invalid={avisoUsername?.tipo === "erro"}
+              className="flex-1 min-w-0 px-3 py-2.5 min-h-[44px] text-sm bg-transparent outline-none"
+            />
+          </div>
+          {avisoUsername && (
+            <p role={avisoUsername.tipo === "erro" ? "alert" : "status"} className={`text-xs mt-1.5 ${avisoUsername.tipo === "erro" ? "text-perigo" : "text-troca-texto"}`}>
+              {avisoUsername.texto}
+            </p>
+          )}
+          <p id="perfil-username-ajuda" className="text-xs text-tinta-suave mt-1.5">
+            É o link do seu perfil e do QR code. Use de {USERNAME.minimo} a {USERNAME.maximo} caracteres: letras sem acento,
+            números, ponto, hífen ou sublinhado. Depois da primeira escolha, dá para trocar uma vez a cada{" "}
+            {DIAS_ENTRE_TROCAS_USERNAME} dias; o link antigo continua levando ao seu perfil.
+            {usernamePadrao(loja.slug) && <> Hoje seu link é <strong className="text-tinta">/perfil/{loja.slug}</strong>.</>}
+          </p>
+        </div>
 
         {/* Nome de exibição: marca opcional; se preenchido, substitui o nome pessoal no site */}
         <div>

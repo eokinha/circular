@@ -6,7 +6,7 @@
 
 export const PARAM_CODIGO = "c";
 
-const SLUG = /^[A-Za-z0-9_-]{1,80}$/;
+const SLUG = /^[A-Za-z0-9._-]{1,80}$/; // nome de usuário (migração 29) aceita ponto
 const CODIGO = /^[0-9a-f]{12}$/;
 const TAMANHO_MAXIMO_NOME = 60;
 

@@ -228,6 +228,16 @@ export const FAQ: SecaoFaq[] = [
         links: [{ href: "/painel/perfil", texto: "Abrir meus dados" }],
       },
       {
+        id: "nome-de-usuario",
+        pergunta: "Posso escolher o link do meu perfil?",
+        resposta: [
+          "Pode. Em Painel → Meus dados, preencha \"Nome de usuário\" (ex.: bia.doces). Seu perfil passa a abrir em /perfil/bia.doces, e o QR code usa esse link.",
+          "Use de 3 a 30 caracteres: letras sem acento, números, ponto, hífen ou sublinhado. Depois da primeira escolha, dá para trocar uma vez a cada 30 dias.",
+          "Links e QR codes antigos continuam levando ao seu perfil, e ninguém mais pode usar o nome que você deixou.",
+        ],
+        links: [{ href: "/painel/perfil", texto: "Abrir meus dados" }],
+      },
+      {
         id: "qr-code-loja",
         pergunta: "Como divulgo meu perfil com QR code?",
         resposta: [

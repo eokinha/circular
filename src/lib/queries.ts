@@ -208,13 +208,17 @@ export async function getProdutosPrivados(lojaId: number, client: SupabaseClient
 
 // Perfil de qualquer campus (RPC; exige login). De outro campus a página fica só leitura:
 // contato e favoritos são barrados no banco (contato_vendedor, política de favoritos).
+// Endereço antigo (o aluno trocou o nome de usuário, migração 29) volta { redirecionar: nome atual }.
 export async function getPerfilLeitura(
   idOuSlug: string,
   client: SupabaseClient = defaultClient
-): Promise<PerfilLeitura | null> {
+): Promise<PerfilLeitura | { redirecionar: string } | null> {
   const { data, error } = await client.rpc("perfil_leitura", { p_id_ou_slug: idOuSlug });
   if (error) throw error;
   if (!data) return null;
+  if (typeof (data as { redirecionar?: unknown }).redirecionar === "string") {
+    return { redirecionar: (data as { redirecionar: string }).redirecionar };
+  }
 
   const raw = data as {
     perfil: PerfilPublico;
@@ -1028,4 +1032,22 @@ export async function denunciarMensagem(
 export async function registrarAcesso(client: SupabaseClient = defaultClient): Promise<void> {
   const { error } = await client.rpc("registrar_acesso", { p_evento: "login" });
   if (error) throw error;
+}
+
+// ---------------------------------------------------------------------------
+// NOME DE USUÁRIO (link do perfil, migração 29)
+// ---------------------------------------------------------------------------
+
+// Motivo para não poder usar o nome (formato, reservado, em uso) ou null se está livre
+export async function verificarUsername(username: string, client: SupabaseClient = defaultClient): Promise<string | null> {
+  const { data, error } = await client.rpc("username_disponivel", { p_username: username });
+  if (error) throw error;
+  return (data as string | null) ?? null;
+}
+
+// Troca o nome de usuário do aluno logado; devolve o nome gravado. O endereço antigo continua levando ao perfil
+export async function definirUsername(username: string, client: SupabaseClient = defaultClient): Promise<string> {
+  const { data, error } = await client.rpc("definir_username", { p_username: username });
+  if (error) throw error;
+  return data as string;
 }

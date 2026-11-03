@@ -137,7 +137,7 @@ Storage (buckets públicos; caminho relativo ao bucket):
 ### Migrações
 
 Aplicadas no projeto de dev, nesta ordem: `setup_completo.sql` (histórico), `00` (alinha banco legado),
-`01`, `009`, `02`, `04`, `05` … `28`. Toda mudança de schema vira um arquivo novo em `db/migrations/`.
+`01`, `009`, `02`, `04`, `05` … `29`. Toda mudança de schema vira um arquivo novo em `db/migrations/`.
 A `16` (regras do MVP) está documentada em `docs/auditoria-mvp.md`; a `18` é o endurecimento
 pós-pentest (grants mínimos, anti-raspagem, cadastro acadêmico no banco, limites e URLs de imagem);
 a `19` fixa cada aluno no campus do próprio e-mail (ver "Campus" abaixo); a `20` cria o código do QR code da loja, a `21` libera esse código a qualquer aluno logado, a `22`
@@ -145,7 +145,7 @@ cria as RPCs da página do anúncio, a `23` separa nome pessoal e nome de exibi�
 cria perguntas nos anúncios e avaliação do vendedor com moderação externa (ver "Perguntas e avaliações"); a `25`
 deixa o autor apagar o próprio comentário e cria a denúncia de comentários; a `26` cria o chat, torna o WhatsApp
 opcional e define a retenção e os registros de acesso (ver "Chat" e "Retenção"); a `27` troca a aprovação de matrícula
-pela moderação de contas (ver "Moderação de contas"); a `28` cria os dias e horários no campus (`lojas.horarios`).
+pela moderação de contas (ver "Moderação de contas"); a `28` cria os dias e horários no campus (`lojas.horarios`) e a `29` deixa o aluno escolher o nome de usuário (ver "Nome do aluno").
 
 ### Segurança (RLS e triggers)
 
@@ -308,6 +308,13 @@ pela moderação de contas (ver "Moderação de contas"); a `28` cria os dias e 
 - **Nome público** (`lojas.nome`): calculado pelo trigger `definir_nome_publico_loja` = nome de exibição ou nome + sobrenome.
   O app lê sempre `lojas.nome` (cards, anúncio, perfil, QR); nunca gravar direto (sem grant)
 - Textos para o aluno falam em "perfil", não em "loja" (a tabela continua `lojas`)
+- **Nome de usuário** (`lojas.slug`, migração 29): link do perfil `/perfil/{usuario}` e do QR code. Nasce `aluno-{id}`;
+  o aluno escolhe em Meus dados pela RPC `definir_username` (`definirUsername`; `username_disponivel` → `verificarUsername`
+  checa ao sair do campo). Regra `username_formato_valido` (3 a 30, a-z 0-9 e `. _ -` entre eles, não só número) + reservados
+  (`aluno-<n>`, Circular/Admin/Modera…/Suporte/Oficial/Equipe), espelhada em `problemaUsername` (`src/lib/username.ts`) —
+  mudar os dois juntos. Primeira troca livre, depois 1 a cada 30 dias (`username_alterado_em`). O endereço anterior vai para
+  `lojas_slugs_antigos` (só RPC): `perfil_leitura` devolve `{redirecionar}` e `/perfil/[id]` redireciona (também id numérico
+  e maiúsculas), mantendo `?c=`; `resumo_loja_compartilhada` aceita o endereço antigo. O slug não tem `GRANT` de `UPDATE`
 - **Dias e horários no campus** (`lojas.horarios`, migração 28): o aluno marca em Meus dados (`EditorHorarios`, até 2 faixas por dia);
   aparecem no perfil e no anúncio (`HorariosCampus`, agrupando dias seguidos). Regra do banco `horarios_validos()`
   espelhada em `problemaHorarios` (`src/lib/horarios.ts`): até 14 faixas, início antes do fim, sem sobreposição — mudar os dois juntos
