@@ -5,6 +5,7 @@ import { GraduationCap } from "lucide-react";
 import AjudaEmailFaculdade from "@/components/AjudaEmailFaculdade";
 import ConfiraEmail from "@/components/ConfiraEmail";
 import Logo from "@/components/Logo";
+import { liberarCacheVisitante } from "@/lib/cache";
 import { createServerClient, supabase } from "@/lib/supabase";
 import { getInstituicoes } from "@/lib/queries";
 import { MENSAGEM_SENHA_VAZADA, senhaVazada } from "@/lib/senha-vazada";
@@ -25,6 +26,8 @@ interface Props {
 // Domínios das faculdades participantes: o campus do aluno sai do e-mail (o banco confere de novo no signup)
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const instituicoes = await getInstituicoes(createServerClient(ctx));
+  // Lista pública de faculdades: o Cloudflare pode guardar (depois da consulta: página de erro não entra no cache)
+  liberarCacheVisitante(ctx);
   return { props: { instituicoes: instituicoes.filter((i) => (i.dominios ?? []).length > 0) } };
 };
 

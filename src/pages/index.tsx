@@ -4,6 +4,7 @@ import { useRef } from "react";
 import CardProduto from "@/components/CardProduto";
 import HeroSection from "@/components/HeroSection";
 import SecaoTrocas from "@/components/SecaoTrocas";
+import { liberarCacheVisitante } from "@/lib/cache";
 import { createServerClient } from "@/lib/supabase";
 import { getCategorias, getMeusFavoritosIds, getProdutosFiltrados, getResumoUsuarioNavbar } from "@/lib/queries";
 import type { Categoria, ProdutoListagem } from "@/types";
@@ -26,6 +27,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
 
   // Visitante não vê catálogo (migração 19): só a apresentação
   if (!user) {
+    // HTML de visitante é igual para todos: o Cloudflare pode guardar (só sem cookie de sessão)
+    liberarCacheVisitante(ctx);
     return {
       props: {
         produtos: [],

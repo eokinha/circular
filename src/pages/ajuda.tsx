@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { GetServerSideProps } from "next";
 import { ChevronDown } from "lucide-react";
 import AjudaEmailFaculdade from "@/components/AjudaEmailFaculdade";
+import { liberarCacheVisitante } from "@/lib/cache";
 import { createServerClient } from "@/lib/supabase";
 import { getInstituicoes } from "@/lib/queries";
 import { FAQ } from "@/lib/faq";
@@ -16,6 +17,8 @@ interface Props {
 // Página pública: o visitante precisa dela antes de conseguir se cadastrar
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const instituicoes = await getInstituicoes(createServerClient(ctx));
+  // Lista pública de faculdades: o Cloudflare pode guardar (depois da consulta: página de erro não entra no cache)
+  liberarCacheVisitante(ctx);
   return { props: { instituicoes: instituicoes.filter((i) => (i.dominios ?? []).length > 0) } };
 };
 

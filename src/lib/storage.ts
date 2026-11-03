@@ -41,7 +41,8 @@ async function uploadEPegarUrlPublica(
     .upload(caminho, file, {
       upsert: true,
       contentType: file.type,
-      cacheControl: "3600",
+      // URL muda a cada upload (?v=), então a foto pode ficar 1 ano no CDN do Supabase e no navegador
+      cacheControl: "31536000",
     });
 
   if (uploadError) throw uploadError;
