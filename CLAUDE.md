@@ -101,6 +101,8 @@ src/
 db/
 ├── setup_completo.sql    # Setup histórico (rodar antes das migrações; não editar)
 └── migrations/           # Migrações numeradas
+docs/produto/             # Decisões, roadmap, specs e métricas (mantido pelo product-manager)
+.claude/agents/           # Subagentes product-manager, tech-lead e qa-engineer (ver "Agentes e orquestração")
 ```
 
 ---
@@ -441,6 +443,51 @@ pela moderação de contas (ver "Moderação de contas"); a `28` cria os dias e 
 - Mutações disparadas por eventos (salvar, pausar, favoritar) chamam funções de `queries.ts`/`storage.ts`
 - Nunca `confirm()`/`alert()`/`prompt()` do navegador: ação destrutiva pede confirmação com `useConfirmacao`
   (`src/components/ModalConfirmacao.tsx`, `perigo: true` para excluir/bloquear); erro aparece na tela (`role="alert"`)
+
+---
+
+## Agentes e orquestração
+
+Este arquivo prevalece sobre qualquer outra instrução de equipe (inclusive a pasta `AI-TEAM/`, que é referência genérica).
+Lucas é o dono do produto e decide escopo, visão e tudo que for irreversível.
+
+### Quando delegar (do mais barato ao mais caro)
+1. **Sessão única** (padrão): bug, ajuste de tela, migração pequena, texto. Não delegar o que dá para fazer direto.
+2. **Subagente na própria sessão**:
+   - `Explore` (embutido) para busca ampla só leitura, quando só a conclusão importa
+   - `product-manager` (`.claude/agents/`): dono do produto. Define problema, escopo e critérios de aceite antes de
+     feature média ou grande, analisa decisões e mantém `docs/produto/` (decisões, roadmap, specs, métricas) e as
+     Regras de negócio deste arquivo. Ao fim de uma entrega que muda o produto, chamar para registrar
+   - `tech-lead` (`.claude/agents/`) para uma parte técnica isolada, em arquivos que a sessão principal não está editando;
+     aplica migrações no banco de produção
+   - `qa-engineer` (Sonnet) para validar mudança de risco: RLS, migração, auth, chat, moderação, dados pessoais
+3. **Worker do Orca** (skill `orchestration`; ler a skill antes, sem inventar flags): só quando precisar de outro
+   agente (ex.: Codex revisando o que o Claude fez), de worktree próprio para implementar em paralelo, ou de tarefa longa
+   que não cabe na sessão. Para entregar sem esperar retorno, usar `orca-cli` (handoff)
+- UX e marketing: usar as skills instaladas (`design:*`, `marketing:*`), não agentes próprios
+- `code-review` em nível `low`/`medium` por padrão; `max`/`ultra` só a pedido do Lucas
+
+### Economia
+- No máximo **2 workers** ao mesmo tempo; 3 só com tarefas grandes e independentes. Nunca dois no mesmo arquivo
+- Tarefa delegada é curta: objetivo, arquivos permitidos, critério de aceite e o que não fazer. Aponte arquivos
+  e seções deste `CLAUDE.md` em vez de colar conteúdo (o worker já carrega este arquivo)
+- Entrega do agente em poucas linhas: arquivos, verificações e resultado, riscos. Sem diffs nem logs inteiros
+- Revisão cruzada (QA ou outro agente) só onde o risco justifica, não em toda tarefa
+- Não declarar delegação que não aconteceu: se fez direto, diga que fez direto
+
+### Banco de produção
+- O Supabase do MCP é produção. A sessão principal e o `tech-lead` estão autorizados a aplicar migrações e rodar SQL:
+  schema sempre por arquivo em `db/migrations/` + `apply_migration`, conferindo `get_advisors` depois.
+  `product-manager` só lê (`SELECT` agregado); `qa-engineer` não acessa
+- Continua exigindo ok do Lucas: apagar ou sobrescrever dado de aluno sem volta (`DROP` com dado, `DELETE`/`UPDATE` em massa,
+  `TRUNCATE`) que a tarefa não pediu com todas as letras
+
+### Exige autorização explícita do Lucas
+- Deploy/merge em `main`, push, mudança na Vercel, Cloudflare, DNS, Resend ou painel do Supabase
+- E-mail, mensagem ou publicação para terceiros; gasto ou serviço novo; dependência nova
+- Expor, copiar ou girar segredos (`.env*`, `MODERACAO_SEGREDO`, chaves da Vettly)
+- **Dados pessoais (LGPD)**: nada de CPF, telefone, e-mail, matrícula, conversas ou registros de acesso de alunos reais
+  em mensagens entre agentes, arquivos de memória, testes, prints ou relatórios. Consulta a esses dados, só agregada e com motivo
 
 ---
 

@@ -12,14 +12,14 @@ Este projeto depende do Supabase para banco de dados, autenticação e storage.
 
 2.  **Banco de Dados**: Vá ao **SQL Editor** do seu projeto no Supabase e execute o conteúdo do arquivo `db/setup_completo.sql`. Ele criará todas as tabelas, triggers, políticas de segurança (RLS) e buckets de storage necessários.
 
-3.  **Migrações**: Em seguida, execute em ordem os arquivos de `db/migrations/` (`01_…` até `05_seguranca_usuarios.sql`). A `05` é obrigatória: ela protege os dados pessoais e cria as funções (RPC) usadas no painel, na verificação de matrícula e no admin.
+3.  **Migrações**: Em seguida, execute os arquivos de `db/migrations/` na ordem descrita em `CLAUDE.md` (seção "Migrações"). Elas protegem os dados pessoais e criam as funções (RPC) usadas no painel, no chat e no admin.
 
 4.  **Administrador**: Para acessar `/admin`, marque seu usuário como admin no SQL Editor:
     ```sql
     UPDATE usuarios SET is_admin = true WHERE email = 'seu-email';
     ```
 
-5.  **Dados de Teste**: Se desejar popular o banco com dados de exemplo, execute o conteúdo de `db/seed.sql` após o setup completo.
+5.  **Dados de Teste**: Se desejar popular o banco com dados de exemplo, use `db/seed/carga_fria.sql` após as migrações (ver "Carga fria" no `CLAUDE.md`).
 
 ## Getting Started
 
