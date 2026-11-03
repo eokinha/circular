@@ -6,6 +6,7 @@ import type {
   ChamadoAdminLeitura,
   ChamadoLeitura,
   ChamadoResumo,
+  FilaChamadosAdmin,
   MensagemChamado,
   StatusChamado,
   AnuncioLeitura,
@@ -1135,13 +1136,28 @@ export async function abrirChamado(dados: {
   return postarApi<{ id: string; protocolo: string }>("/api/suporte/abrir", dados);
 }
 
-export async function getChamadosAdmin(
-  status: StatusChamado | null = null,
+// Fila paginada (20 por página; migração 34)
+export async function getFilaChamadosAdmin(
+  status: StatusChamado | null,
+  pagina: number,
   client: SupabaseClient = defaultClient
-): Promise<ChamadoAdmin[]> {
-  const { data, error } = await client.rpc("admin_listar_chamados", { p_status: status });
+): Promise<FilaChamadosAdmin> {
+  const { data, error } = await client.rpc("admin_fila_chamados", { p_status: status, p_pagina: pagina });
   if (error) throw error;
-  return ((data ?? []) as ChamadoAdmin[]).map(mapearChamado);
+  const fila = data as FilaChamadosAdmin;
+  const c = fila.contagens ?? {};
+  return {
+    itens: ((fila.itens ?? []) as ChamadoAdmin[]).map(mapearChamado),
+    total: Number(fila.total ?? 0),
+    pagina: Number(fila.pagina ?? pagina),
+    por_pagina: Number(fila.por_pagina ?? 20),
+    contagens: {
+      aberto: Number(c.aberto ?? 0),
+      em_atendimento: Number(c.em_atendimento ?? 0),
+      resolvido: Number(c.resolvido ?? 0),
+      todos: Number(c.todos ?? 0),
+    },
+  };
 }
 
 export async function getChamadoAdmin(

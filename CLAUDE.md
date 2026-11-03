@@ -164,7 +164,7 @@ cria perguntas nos anúncios e avaliação do vendedor com moderação externa (
 deixa o autor apagar o próprio comentário e cria a denúncia de comentários; a `26` cria o chat, torna o WhatsApp
 opcional e define a retenção e os registros de acesso (ver "Chat" e "Retenção"); a `27` troca a aprovação de matrícula
 pela moderação de contas (ver "Moderação de contas"); a `28` cria os dias e horários no campus (`lojas.horarios`) , a `29` deixa o aluno escolher o nome de usuário (ver "Nome do aluno") e a `30` fecha na API três funções internas (triggers de nome e `usuario_publico`).
-A `31` cria o canal de suporte (ver "Suporte"; a `33` estende a retenção a chamado abandonado) e a `32` deixa o cadastro aberto só na Unijorge e na Zarns (piloto; ver "Campus").
+A `31` cria o canal de suporte (ver "Suporte"; a `33` estende a retenção a chamado abandonado e a `34` pagina a fila) e a `32` deixa o cadastro aberto só na Unijorge e na Zarns (piloto; ver "Campus").
 
 ### Segurança (RLS e triggers)
 
@@ -241,7 +241,8 @@ A `31` cria o canal de suporte (ver "Suporte"; a `33` estende a retenção a cha
   - `registrar_acesso('login')` → `registrarAcesso` (chamado no login; as RPCs do chat registram sozinhas)
   - `anuncio_leitura` e `perfil_leitura` devolvem `tem_whatsapp` (o botão do WhatsApp só aparece com número)
   - Suporte (migração 31): `abrir_chamado` · `enviar_mensagem_chamado` · `meus_chamados` · `chamado_leitura` ·
-    `mensagens_do_chamado` · `marcar_chamado_lido` · `admin_listar_chamados(p_status)` · `admin_ler_chamado` ·
+    `mensagens_do_chamado` · `marcar_chamado_lido` · `admin_fila_chamados(p_status, p_pagina)` → `getFilaChamadosAdmin`
+    (20 por página, migração 34; `admin_listar_chamados` da 31 ficou só para o deploy anterior) · `admin_ler_chamado` ·
     `admin_responder_chamado` · `admin_status_chamado`. Abrir, responder e mudar status passam pelas rotas
     `/api/suporte/{abrir,responder,status}`, que mandam o e-mail (`src/lib/email-resend.ts`)
 - Cadastro só com e-mail de faculdade participante também no banco: `handle_new_user` rejeita o signup se
@@ -406,6 +407,8 @@ A `31` cria o canal de suporte (ver "Suporte"; a `33` estende a retenção a cha
   em chat. O e-mail formaliza: protocolo (`CIR-AAAA-NNNNN`) ao aluno e aviso à equipe na abertura, cada resposta da equipe
   e a resolução. Remetente `nao-responda@eokinha.com.br`, reply-to `suporte@eokinha.com.br` (`EMAIL_SUPORTE` em `src/lib/suporte.ts`)
 - Quem não consegue entrar usa o `mailto:` do login, do `/ajuda` e do Footer
+- Fila do admin: 20 por página, filtro e página na URL (`?status=&pagina=`, `caminhoFilaAdmin`); `POR_PAGINA_CHAMADOS`
+  em `src/lib/suporte.ts` espelha `v_por_pagina` da `admin_fila_chamados` — mudar os dois juntos
 - Status `aberto | em_atendimento | resolvido`; resolvido não aceita mensagem do aluno (abre outro) e a resposta da equipe reabre.
   O aluno não vê qual admin respondeu (só `de_equipe`)
 - Limites: 3 chamados em andamento e 5 por dia; 10 mensagens/min e 100/dia do aluno; título 5–120, primeira mensagem 10–2000

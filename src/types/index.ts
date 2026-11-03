@@ -428,6 +428,14 @@ export interface ChamadoAdmin extends ChamadoResumo {
   aluno: AlunoDoChamado | null;
 }
 
+export interface FilaChamadosAdmin {
+  itens: ChamadoAdmin[];
+  total: number; // do filtro atual
+  pagina: number;
+  por_pagina: number;
+  contagens: Record<StatusChamado | "todos", number>;
+}
+
 export interface ChamadoAdminLeitura extends ChamadoAdmin {
   mensagens: MensagemChamado[];
 }

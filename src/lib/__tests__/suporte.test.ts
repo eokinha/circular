@@ -2,6 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   CATEGORIAS_CHAMADO,
+  POR_PAGINA_CHAMADOS,
+  caminhoFilaAdmin,
+  paginaDaQuery,
+  totalDePaginas,
   EMAIL_SUPORTE,
   caminhoChamado,
   categoriaValida,
@@ -91,4 +95,32 @@ test("e-mail de resolução traz período e última resposta (opcional)", () => 
   const sem = emailResolucaoAluno({ ...BASE, abertoEm: "2026-11-01T12:00:00Z", resolvidoEm: "2026-11-02T15:30:00Z" });
   assert.doesNotMatch(sem.texto, /Última resposta/);
   assert.match(sem.html, /Olá!/);
+});
+
+test("paginaDaQuery aceita só inteiro positivo", () => {
+  assert.equal(paginaDaQuery("3"), 3);
+  assert.equal(paginaDaQuery(undefined), 1);
+  assert.equal(paginaDaQuery("0"), 1);
+  assert.equal(paginaDaQuery("-2"), 1);
+  assert.equal(paginaDaQuery("2.5"), 1);
+  assert.equal(paginaDaQuery("abc"), 1);
+  assert.equal(paginaDaQuery(["2"]), 1);
+  assert.equal(paginaDaQuery("9999999"), 1);
+});
+
+test("totalDePaginas usa 20 por página e nunca menos de 1", () => {
+  assert.equal(POR_PAGINA_CHAMADOS, 20);
+  assert.equal(totalDePaginas(0), 1);
+  assert.equal(totalDePaginas(20), 1);
+  assert.equal(totalDePaginas(21), 2);
+  assert.equal(totalDePaginas(45), 3);
+});
+
+test("caminhoFilaAdmin mantém filtro, página e chamado", () => {
+  assert.equal(caminhoFilaAdmin({ status: "aberto" }), "/admin/suporte?status=aberto");
+  assert.equal(caminhoFilaAdmin({ status: "todos", pagina: 1 }), "/admin/suporte?status=todos");
+  assert.equal(
+    caminhoFilaAdmin({ status: "resolvido", pagina: 3, chamado: "abc" }),
+    "/admin/suporte?status=resolvido&pagina=3&chamado=abc"
+  );
 });
