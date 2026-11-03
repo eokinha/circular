@@ -20,6 +20,8 @@ em que a build roda (Production, Preview, Development):
 - `VETTLY_API_KEY` e `VETTLY_POLICY_ID` — moderação de perguntas e avaliações (só servidor; sem elas tudo fica em análise)
 - `MODERACAO_SEGREDO` — segredo que as rotas `/api` mandam para `aplicar_moderacao`; o banco guarda só o SHA-256
   em `privado.config` (chave `moderacao_segredo_sha256`). Trocar o segredo = gravar o novo hash lá e a variável na Vercel
+- `RESEND_API_KEY` — e-mails do suporte (só servidor; sem ela o chamado funciona e o e-mail é pulado com log).
+  `SUPORTE_EMAIL_EQUIPE` opcional (padrão `suporte@eokinha.com.br`, caixa que recebe o aviso de chamado novo)
 
 E-mails do Supabase Auth (recuperação de senha, confirmação) saem pelo SMTP do Resend,
 configurado no painel do Supabase (Authentication → SMTP), não pelo código.
@@ -62,7 +64,7 @@ src/
 │   ├── anuncio/[id].tsx  # Página do anúncio (/anuncio/{id}-{nome}; nome errado redireciona para o certo) + perguntas
 │   ├── mensagens/        # Chat: index (caixa de entrada) e [id] (conversa em tempo real); exige login
 │   ├── api/              # perguntas, respostas, avaliacoes: gravam pela RPC e moderam na Vettly (src/lib/moderacao.ts)
-│   ├── painel/           # Painel do estudante (index, anuncios, favoritos, perfil)
+│   ├── painel/           # Painel do estudante (index, anuncios, favoritos, perfil, suporte)
 │   ├── minha-loja/       # Rotas antigas: só redirecionam para /painel e /anunciar
 │   └── admin/
 │       ├── contas.tsx        # Moderação de contas: suspender, bloquear, reativar e histórico (somente admin;
@@ -70,7 +72,8 @@ src/
 │       ├── lojas.tsx         # Status das lojas e produtos impulsionados (somente admin)
 │       ├── imagens.tsx       # Upload de avatar/capa/imagens (somente admin)
 │       ├── denuncias.tsx     # Fila de denúncias: abas Anúncios e perfis / Comentários (somente admin)
-│       └── comentarios.tsx   # Perguntas/avaliações que a Vettly não aprovou (somente admin)
+│       ├── comentarios.tsx   # Perguntas/avaliações que a Vettly não aprovou (somente admin)
+│       └── suporte.tsx       # Fila de chamados de suporte e conversa com o aluno (somente admin)
 ├── components/           # Navbar, Footer, HeroSection, CardProduto (link para a página do anúncio),
 │                         # BotaoContato (WhatsApp via RPC), BotaoDenunciar,
 │                         # ConfiraEmail (pós-cadastro/senha), GuiaEmail + AjudaEmailFaculdade (tutorial do e-mail),
@@ -161,6 +164,7 @@ cria perguntas nos anúncios e avaliação do vendedor com moderação externa (
 deixa o autor apagar o próprio comentário e cria a denúncia de comentários; a `26` cria o chat, torna o WhatsApp
 opcional e define a retenção e os registros de acesso (ver "Chat" e "Retenção"); a `27` troca a aprovação de matrícula
 pela moderação de contas (ver "Moderação de contas"); a `28` cria os dias e horários no campus (`lojas.horarios`) , a `29` deixa o aluno escolher o nome de usuário (ver "Nome do aluno") e a `30` fecha na API três funções internas (triggers de nome e `usuario_publico`).
+A `31` cria o canal de suporte (ver "Suporte"; a `33` estende a retenção a chamado abandonado) e a `32` deixa o cadastro aberto só na Unijorge e na Zarns (piloto; ver "Campus").
 
 ### Segurança (RLS e triggers)
 
@@ -236,6 +240,10 @@ pela moderação de contas (ver "Moderação de contas"); a `28` cria os dias e 
     `denunciar_mensagem` (pelo `BotaoDenunciar` com `mensagemId`) · `admin_ler_conversa_denunciada` → `getConversaDenunciada`
   - `registrar_acesso('login')` → `registrarAcesso` (chamado no login; as RPCs do chat registram sozinhas)
   - `anuncio_leitura` e `perfil_leitura` devolvem `tem_whatsapp` (o botão do WhatsApp só aparece com número)
+  - Suporte (migração 31): `abrir_chamado` · `enviar_mensagem_chamado` · `meus_chamados` · `chamado_leitura` ·
+    `mensagens_do_chamado` · `marcar_chamado_lido` · `admin_listar_chamados(p_status)` · `admin_ler_chamado` ·
+    `admin_responder_chamado` · `admin_status_chamado`. Abrir, responder e mudar status passam pelas rotas
+    `/api/suporte/{abrir,responder,status}`, que mandam o e-mail (`src/lib/email-resend.ts`)
 - Cadastro só com e-mail de faculdade participante também no banco: `handle_new_user` rejeita o signup se
   `email_cadastro_permitido()` falhar (= domínio em `instituicoes.dominios`; espelho de `validarEmailUniversitario`).
 - Limites de texto/formato são `CHECK` no banco, espelhados em `LIMITES_TEXTO` (`src/lib/validacoes.ts`) como `maxLength`.
@@ -257,6 +265,8 @@ pela moderação de contas (ver "Moderação de contas"); a `28` cria os dias e 
 - `db/seed/carga_fria.sql`: os 5 alunos de teste (lojas 1 a 5) viram vendedores da **Unijorge**, com 180 anúncios
   (20 por categoria principal, Trocas incluída). O campus vem do domínio no topo do arquivo; para outra
   instituição da Bahia, trocar o domínio. Está aplicada no banco que o site usa (o mesmo do MCP).
+- `db/seed/carga_fria_zarns.sql` (depois da anterior): as lojas 2 e 3 vão para a **Zarns** (72 anúncios);
+  a Unijorge fica com as lojas 1, 4 e 5 (108). Aplicada no mesmo banco. Os anúncios vencem juntos em 2026-12-30
 - Fotos: CC0 do Openverse, enviadas ao Storage logado como cada vendedor; créditos em `db/seed/creditos_imagens.json`.
   Reaplicar a carga apaga os anúncios das lojas 1 a 5: remover as fotos deles do Storage antes.
 - Contas de tester: `*@example.com`, WhatsApp fictício (DDD 71). A senha é aleatória e não fica no repositório;
@@ -284,6 +294,8 @@ pela moderação de contas (ver "Moderação de contas"); a `28` cria os dias e 
 ### Campus
 - Cada aluno fica no campus do próprio e-mail: o domínio define `usuarios.instituicoes_id` no cadastro, sem seletor nem filtro
 - Cadastro só com domínio de faculdade participante; para abrir uma faculdade nova, cadastrar a instituição com os `dominios`
+- Piloto (migração 32): só **Unijorge** e **Zarns** (`aluno.faculdadezarns.com.br`) têm `dominios`; as outras 11 ficam com `{}`
+  (fechadas para cadastro novo; os domínios antigos estão no cabeçalho da migração para reabrir)
 - Home, listagem e busca mostram só o campus do aluno; a Navbar exibe o campus fixo como "Circular | logo da faculdade"
   (`logoDaFaculdade` em `src/lib/faculdades.ts`; sem logo cadastrado, mostra o nome curto). Busca no centro, Anunciar e conta à direita
 - Perfil de outro campus (link compartilhado) abre só leitura: sem WhatsApp nem favoritar; denunciar continua liberado
@@ -388,6 +400,20 @@ pela moderação de contas (ver "Moderação de contas"); a `28` cria os dias e 
   O admin **não** lê as tabelas do chat: só a cópia, por `admin_ler_conversa_denunciada`, e cada leitura fica em `privado.acessos_admin_chat`
 - Realtime: em Project Settings → Realtime, deixar desligado "Allow public access" (só canais privados)
 - Push (OneSignal) ainda não existe; a coluna `mensagens.notificado_em` está reservada para ele
+
+### Suporte (migração 31)
+- O aluno abre chamado em `/painel/suporte` (também com conta suspensa ou bloqueada); a equipe atende em `/admin/suporte`
+  em chat. O e-mail formaliza: protocolo (`CIR-AAAA-NNNNN`) ao aluno e aviso à equipe na abertura, cada resposta da equipe
+  e a resolução. Remetente `nao-responda@eokinha.com.br`, reply-to `suporte@eokinha.com.br` (`EMAIL_SUPORTE` em `src/lib/suporte.ts`)
+- Quem não consegue entrar usa o `mailto:` do login, do `/ajuda` e do Footer
+- Status `aberto | em_atendimento | resolvido`; resolvido não aceita mensagem do aluno (abre outro) e a resposta da equipe reabre.
+  O aluno não vê qual admin respondeu (só `de_equipe`)
+- Limites: 3 chamados em andamento e 5 por dia; 10 mensagens/min e 100/dia do aluno; título 5–120, primeira mensagem 10–2000
+- Tempo real no canal privado `chamado:{uuid}` (dono ou admin; `topicoChamado` em `src/lib/chat.ts`, `assinarChamado`)
+- Tabelas `chamados`/`chamado_mensagens` sem grant: só RPC. Resposta feita direto pela RPC não gera e-mail
+- Retenção: chamado sem atividade (qualquer status) apagado após `retencao_chamados_dias` (180) de `privado.config`
+  (migração 33); excluir a conta copia os chamados
+  para `privado.conteudo_retido`
 
 ### Retenção e registros de acesso (migração 26)
 - Prazos em `privado.config` (`retencao_conteudo_dias` = 30, `retencao_registros_acesso_dias` = 180); job diário do `pg_cron`

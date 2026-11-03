@@ -1,6 +1,13 @@
 import { supabase as defaultClient } from "@/lib/supabase";
 import type {
   AnuncioDetalhe,
+  CategoriaChamado,
+  ChamadoAdmin,
+  ChamadoAdminLeitura,
+  ChamadoLeitura,
+  ChamadoResumo,
+  MensagemChamado,
+  StatusChamado,
   AnuncioLeitura,
   Categoria,
   CategoriaComFilhos,
@@ -850,7 +857,11 @@ export async function getAvaliacoesDoVendedor(
 }
 
 // Erro das rotas /api: mensagem amigável em `message` e o SQLSTATE em `code` (42501 = sem login)
-async function enviarParaModeracao(url: string, corpo: Record<string, unknown>): Promise<ResultadoModeracao> {
+function enviarParaModeracao(url: string, corpo: Record<string, unknown>): Promise<ResultadoModeracao> {
+  return postarApi<ResultadoModeracao>(url, corpo);
+}
+
+async function postarApi<T>(url: string, corpo: Record<string, unknown>): Promise<T> {
   const resposta = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -862,7 +873,7 @@ async function enviarParaModeracao(url: string, corpo: Record<string, unknown>):
       code: json.codigo as string | undefined,
     });
   }
-  return json as ResultadoModeracao;
+  return json as T;
 }
 
 export function enviarPergunta(produtoId: number, texto: string): Promise<ResultadoModeracao> {
@@ -1050,4 +1061,116 @@ export async function definirUsername(username: string, client: SupabaseClient =
   const { data, error } = await client.rpc("definir_username", { p_username: username });
   if (error) throw error;
   return data as string;
+}
+
+// ---------------------------------------------------------------------------
+// SUPORTE (migração 31)
+// Abrir, responder (equipe) e mudar status passam pelas rotas /api/suporte/* (que mandam o e-mail);
+// o resto é RPC direta. Conta suspensa ou bloqueada também usa.
+// ---------------------------------------------------------------------------
+
+function mapearMensagemChamado(m: MensagemChamado): MensagemChamado {
+  return { ...m, id: Number(m.id), de_equipe: Boolean(m.de_equipe) };
+}
+
+function mapearChamado<T extends ChamadoResumo>(c: T): T {
+  return { ...c, nao_lidas: Number(c.nao_lidas ?? 0) };
+}
+
+export async function getMeusChamados(client: SupabaseClient = defaultClient): Promise<ChamadoResumo[]> {
+  const { data, error } = await client.rpc("meus_chamados");
+  if (error) throw error;
+  return ((data ?? []) as ChamadoResumo[]).map(mapearChamado);
+}
+
+// null = não existe ou não é do aluno
+export async function getChamadoLeitura(
+  chamadoId: string,
+  client: SupabaseClient = defaultClient
+): Promise<ChamadoLeitura | null> {
+  const { data, error } = await client.rpc("chamado_leitura", { p_chamado_id: chamadoId });
+  if (error) throw error;
+  if (!data) return null;
+  const raw = mapearChamado(data as ChamadoLeitura);
+  return { ...raw, mensagens: (raw.mensagens ?? []).map(mapearMensagemChamado) };
+}
+
+// Reconexão do Realtime: o que chegou depois do último id visto (aluno ou equipe)
+export async function getMensagensDoChamado(
+  chamadoId: string,
+  depois: number,
+  client: SupabaseClient = defaultClient
+): Promise<MensagemChamado[]> {
+  const { data, error } = await client.rpc("mensagens_do_chamado", { p_chamado_id: chamadoId, p_depois: depois });
+  if (error) throw error;
+  return ((data ?? []) as MensagemChamado[]).map(mapearMensagemChamado);
+}
+
+export async function enviarMensagemChamado(
+  chamadoId: string,
+  texto: string,
+  clienteId: string,
+  client: SupabaseClient = defaultClient
+): Promise<MensagemChamado> {
+  const { data, error } = await client.rpc("enviar_mensagem_chamado", {
+    p_chamado_id: chamadoId,
+    p_texto: texto,
+    p_cliente_id: clienteId,
+  });
+  if (error) throw error;
+  return mapearMensagemChamado(data as MensagemChamado);
+}
+
+export async function marcarChamadoLido(chamadoId: string, client: SupabaseClient = defaultClient): Promise<void> {
+  const { error } = await client.rpc("marcar_chamado_lido", { p_chamado_id: chamadoId });
+  if (error) throw error;
+}
+
+export async function abrirChamado(dados: {
+  categoria: CategoriaChamado;
+  assunto: string;
+  descricao: string;
+  clienteId: string;
+}): Promise<{ id: string; protocolo: string }> {
+  return postarApi<{ id: string; protocolo: string }>("/api/suporte/abrir", dados);
+}
+
+export async function getChamadosAdmin(
+  status: StatusChamado | null = null,
+  client: SupabaseClient = defaultClient
+): Promise<ChamadoAdmin[]> {
+  const { data, error } = await client.rpc("admin_listar_chamados", { p_status: status });
+  if (error) throw error;
+  return ((data ?? []) as ChamadoAdmin[]).map(mapearChamado);
+}
+
+export async function getChamadoAdmin(
+  chamadoId: string,
+  client: SupabaseClient = defaultClient
+): Promise<ChamadoAdminLeitura | null> {
+  const { data, error } = await client.rpc("admin_ler_chamado", { p_chamado_id: chamadoId });
+  if (error) throw error;
+  if (!data) return null;
+  const raw = mapearChamado(data as ChamadoAdminLeitura);
+  return { ...raw, mensagens: (raw.mensagens ?? []).map(mapearMensagemChamado) };
+}
+
+export async function responderChamado(
+  chamadoId: string,
+  texto: string,
+  clienteId: string
+): Promise<{ mensagem: MensagemChamado; status: StatusChamado }> {
+  const r = await postarApi<{ mensagem: MensagemChamado; status: StatusChamado }>("/api/suporte/responder", {
+    chamadoId,
+    texto,
+    clienteId,
+  });
+  return { ...r, mensagem: mapearMensagemChamado(r.mensagem) };
+}
+
+export function mudarStatusChamado(
+  chamadoId: string,
+  status: StatusChamado
+): Promise<{ status: StatusChamado; resolvido_em: string | null }> {
+  return postarApi<{ status: StatusChamado; resolvido_em: string | null }>("/api/suporte/status", { chamadoId, status });
 }

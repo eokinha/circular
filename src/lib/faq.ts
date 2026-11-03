@@ -2,6 +2,7 @@
 // Respostas descrevem as regras do CLAUDE.md: ao mudar uma regra de negócio, revisar o texto aqui.
 import { DIAS_VALIDADE_ANUNCIO } from "./anuncios.ts";
 import { REMETENTE_CIRCULAR } from "./guias-email.ts";
+import { EMAIL_SUPORTE } from "./suporte.ts";
 
 export interface LinkFaq {
   href: string; // sempre caminho interno
@@ -273,6 +274,22 @@ export const FAQ: SecaoFaq[] = [
         resposta: [
           "Use o botão Denunciar no anúncio ou no perfil do aluno. Nossa equipe analisa cada denúncia e pode remover anúncios e bloquear contas.",
         ],
+      },
+    ],
+  },
+  {
+    id: "suporte",
+    titulo: "Falar com a equipe",
+    perguntas: [
+      {
+        id: "falar-com-a-equipe",
+        pergunta: "Como falo com a equipe do Circular?",
+        resposta: [
+          "Entre na sua conta e abra um chamado em Painel → Suporte. Você conversa com a equipe por ali e recebe no e-mail da faculdade o número do protocolo, o aviso de cada resposta e o resumo quando o atendimento termina.",
+          "Vale também para conta suspensa ou bloqueada: o painel continua abrindo e você pode pedir a revisão por um chamado.",
+          `Não consegue entrar (senha, e-mail da faculdade ou conta desativada)? Escreva para ${EMAIL_SUPORTE} usando o e-mail da faculdade, se tiver acesso a ele, e conte o que aparece na tela. Nunca envie sua senha.`,
+        ],
+        links: [{ href: "/painel/suporte", texto: "Abrir um chamado" }],
       },
     ],
   },

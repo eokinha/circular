@@ -8,6 +8,7 @@ import { liberarCacheVisitante } from "@/lib/cache";
 import { createServerClient } from "@/lib/supabase";
 import { getInstituicoes } from "@/lib/queries";
 import { FAQ } from "@/lib/faq";
+import { EMAIL_SUPORTE, linkMailtoSuporte } from "@/lib/suporte";
 import type { Instituicao } from "@/types";
 
 interface Props {
@@ -104,6 +105,23 @@ export default function AjudaPage({ instituicoes }: Props) {
             </section>
           ))}
         </div>
+
+        <section aria-labelledby="contato-titulo" className="mt-10 bg-superficie border border-borda rounded-card p-5 text-sm text-tinta-suave">
+          <h2 id="contato-titulo" className="text-lg font-bold text-petroleo mb-2">
+            Não achou a resposta?
+          </h2>
+          <p>
+            Com login, abra um chamado em{" "}
+            <Link href="/painel/suporte" className="text-petroleo font-semibold hover:underline">
+              Painel → Suporte
+            </Link>
+            . Se não consegue entrar, escreva para{" "}
+            <a href={linkMailtoSuporte("Ajuda com o Circular")} className="text-petroleo font-semibold hover:underline">
+              {EMAIL_SUPORTE}
+            </a>
+            .
+          </p>
+        </section>
       </div>
     </>
   );

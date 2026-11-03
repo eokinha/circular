@@ -111,7 +111,8 @@ A parte de banco está em `db/migrations/16_regras_mvp.sql`.
 - [ ] **Authentication → Policies/Passwords:** ligar "Leaked password protection" (exige plano Pro do Supabase).
 - [x] **Authentication → URL Configuration:** Site URL e redirects apontando para o domínio de produção.
 - [ ] **Projeto de produção separado:** `setup_completo.sql` + migrações `00 … 17` na ordem do `CLAUDE.md`.
-      Não rodar `db/seed/carga_fria.sql` em produção.
+      Não rodar `db/seed/carga_fria.sql` em produção. *(Substituído em 2026-10-31: o banco do MCP é o de produção e a carga
+      fria foi aplicada nele de propósito; ver `docs/produto/decisoes.md`.)*
 - [x] **Instituições:** cadastrar cada instituição atendida com seus domínios
       (`UPDATE instituicoes SET dominios = '{ufmg.br}' WHERE id = 1;`). Domínios de subdomínio
       (`aluno.ufmg.br`) já são cobertos pelo domínio raiz.

@@ -41,9 +41,4 @@ incluí-lo em `src/lib/faq.ts`, no login e no rodapé.
 
 Não testado na entrega: cadastro com e-mail institucional real → tela "Confira seu e-mail" →
 reenviar link → confirmar → onboarding; e o reenvio de confirmação pelo login.
-
-## 6. `npm test` no Windows
-
-`node --test 'src/lib/__tests__/*.test.ts'` roda 0 testes no Windows (o glob entre aspas simples não é
-expandido). Por enquanto, rodar `node --test src/lib/__tests__/*.test.ts` direto. Ajustar o script em
-`package.json` para funcionar nos dois sistemas.
+Está no "Agora" de `docs/produto/roadmap.md`.

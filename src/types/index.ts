@@ -382,3 +382,52 @@ export interface ConversaDenunciada {
   mensagem_denunciada_id: number;
   copiada_em: string;
 }
+
+// Suporte (migração 31): chamados do aluno com a equipe. O aluno nunca vê qual admin respondeu (só de_equipe).
+export type CategoriaChamado = "conta" | "acesso" | "anuncio" | "negociacao" | "privacidade" | "outro";
+export type StatusChamado = "aberto" | "em_atendimento" | "resolvido";
+
+export interface MensagemChamado {
+  id: number;
+  chamado_id: string;
+  de_equipe: boolean;
+  texto: string;
+  cliente_id: string; // gerado no navegador; reenvio não duplica
+  criado_em: string;
+  lida_em: string | null;
+}
+
+export interface ChamadoResumo {
+  id: string;
+  protocolo: string;
+  categoria: CategoriaChamado;
+  assunto: string;
+  status: StatusChamado;
+  criado_em: string;
+  atualizado_em: string;
+  resolvido_em: string | null;
+  ultima: { texto: string; de_equipe: boolean; criado_em: string } | null;
+  nao_lidas: number; // do outro lado (aluno: da equipe; equipe: do aluno)
+}
+
+export interface ChamadoLeitura extends ChamadoResumo {
+  mensagens: MensagemChamado[];
+}
+
+export interface AlunoDoChamado {
+  id: number;
+  nome: string;
+  nome_publico: string | null;
+  slug: string | null;
+  instituicao: string | null;
+  conta_status: string;
+  bloqueado_ate: string | null;
+}
+
+export interface ChamadoAdmin extends ChamadoResumo {
+  aluno: AlunoDoChamado | null;
+}
+
+export interface ChamadoAdminLeitura extends ChamadoAdmin {
+  mensagens: MensagemChamado[];
+}

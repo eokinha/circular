@@ -2,8 +2,8 @@
 // realtime.messages, migração 26). Só o banco publica mensagens; o navegador publica só o "digitando".
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
-import { topicoConversa, topicoDigitando, topicoUsuario } from "@/lib/chat";
-import type { MensagemChat } from "@/types";
+import { topicoChamado, topicoConversa, topicoDigitando, topicoUsuario } from "@/lib/chat";
+import type { MensagemChamado, MensagemChat, StatusChamado } from "@/types";
 
 interface EventosConversa {
   onMensagem: (mensagem: MensagemChat) => void;
@@ -130,4 +130,30 @@ export function assinarUsuario(usuarioId: number, eventos: EventosUsuario) {
       }
     },
   };
+}
+
+// Chamado de suporte (migração 31): mensagem nova e mudança de status, para o aluno e para a equipe.
+// Como no chat, a cada conexão o componente busca o que chegou enquanto o canal estava fora.
+export function assinarChamado(
+  chamadoId: string,
+  eventos: {
+    onMensagem: (mensagem: MensagemChamado) => void;
+    onStatus: (status: StatusChamado) => void;
+    onSincronizar: () => void;
+  }
+) {
+  const canal = abrirCanal(
+    topicoChamado(chamadoId),
+    (c) =>
+      c
+        .on("broadcast", { event: "mensagem" }, ({ payload }) => {
+          const m = payload as MensagemChamado;
+          eventos.onMensagem({ ...m, id: Number(m.id), de_equipe: Boolean(m.de_equipe) });
+        })
+        .on("broadcast", { event: "status" }, ({ payload }) => {
+          eventos.onStatus(String(payload.status) as StatusChamado);
+        }),
+    eventos.onSincronizar
+  );
+  return { sair: canal.sair };
 }

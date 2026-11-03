@@ -1,4 +1,5 @@
 import Head from "next/head";
+import { EMAIL_SUPORTE, linkMailtoSuporte } from "@/lib/suporte";
 
 export default function PrivacidadePage() {
   return (
@@ -19,7 +20,11 @@ export default function PrivacidadePage() {
               <li>Verificação: instituição e número de matrícula.</li>
               <li>Perfil: WhatsApp (opcional), descrição, fotos, redes sociais e locais de encontro que você informar.</li>
               <li>Mensagens do chat que você enviar e receber.</li>
-              <li>Registros de acesso: endereço IP, data e hora em que você entra e usa o chat.</li>
+              <li>
+                Chamados de suporte: o assunto, as mensagens trocadas com a equipe e os e-mails de atendimento enviados a
+                você (protocolo, respostas e encerramento).
+              </li>
+              <li>Registros de acesso: endereço IP, data e hora em que você entra, usa o chat e abre ou responde chamados.</li>
               <li>Anúncios, favoritos e denúncias que você criar.</li>
               <li>
                 Registro de interesse: quando você toca em &ldquo;Tenho interesse&rdquo;, guardamos qual anúncio e quando, para
@@ -36,6 +41,10 @@ export default function PrivacidadePage() {
               <li>Permitir que alunos logados falem com você pelo chat e, se você cadastrar, pelo WhatsApp.</li>
               <li>Cumprir a obrigação legal de guardar registros de acesso (Marco Civil da Internet, art. 15).</li>
               <li>Moderar denúncias, perguntas e avaliações e manter a comunidade segura.</li>
+              <li>
+                Atender seus pedidos de suporte e mandar ao e-mail da sua conta o registro do atendimento (protocolo,
+                aviso de resposta e resumo no encerramento).
+              </li>
               <li>Medir o uso do serviço de forma agregada.</li>
             </ul>
           </section>
@@ -46,7 +55,8 @@ export default function PrivacidadePage() {
               Seu nome, instituição, selo de verificado, fotos, descrição e anúncios aparecem para quem visita o
               catálogo, assim como as perguntas e avaliações que você publicar (com seu nome público). Seu WhatsApp, se cadastrado, só é mostrado para alunos com conta, quando eles pedem para falar com você.
               As mensagens do chat só são vistas por você e pela outra pessoa da conversa. A equipe só lê uma conversa
-              quando uma das pessoas denuncia uma mensagem, e cada leitura fica registrada.
+              quando uma das pessoas denuncia uma mensagem, e cada leitura fica registrada. Os chamados de suporte só são
+              vistos por você e pela equipe do Circular.
               E-mail, matrícula, CPF e telefone de cadastro nunca ficam públicos.
             </p>
           </section>
@@ -54,7 +64,8 @@ export default function PrivacidadePage() {
           <section>
             <h2 className="text-lg font-bold text-petroleo mb-2">4. Com quem compartilhamos</h2>
             <p>
-              Não vendemos seus dados. Usamos fornecedores para hospedar o site, o banco de dados e o envio de e-mails,
+              Não vendemos seus dados. Usamos fornecedores para hospedar o site, o banco de dados e o envio de e-mails
+              (inclusive os de atendimento do suporte, que levam seu e-mail, seu nome e o texto do chamado),
               que tratam os dados só para prestar esse serviço. O texto de perguntas, respostas e comentários de
               avaliação é enviado a um serviço de moderação automática (Vettly), sem seu nome, e-mail ou telefone,
               só para checar se segue as regras antes de publicar.
@@ -66,8 +77,12 @@ export default function PrivacidadePage() {
             <ul className="list-disc pl-5 space-y-1">
               <li>Conversas do chat: apagadas 30 dias depois da última mensagem.</li>
               <li>
-                Conta excluída: tudo sai do site na hora. Uma cópia do conteúdo (perfil, anúncios, perguntas, avaliações
-                e conversas) fica guardada fora do site por 30 dias, para segurança e pedidos de autoridades, e depois é
+                Chamados de suporte: apagados 180 dias depois de resolvidos, para a equipe consultar o histórico se o
+                mesmo problema voltar ou se você pedir revisão. Os e-mails de atendimento ficam na sua caixa de entrada.
+              </li>
+              <li>
+                Conta excluída: tudo sai do site na hora. Uma cópia do conteúdo (perfil, anúncios, perguntas, avaliações,
+                conversas e chamados de suporte) fica guardada fora do site por 30 dias, para segurança e pedidos de autoridades, e depois é
                 apagada.
               </li>
               <li>Conversa denunciada: a cópia enviada à equipe fica até a denúncia ser analisada e mais 30 dias.</li>
@@ -79,7 +94,7 @@ export default function PrivacidadePage() {
             <h2 className="text-lg font-bold text-petroleo mb-2">6. Seus direitos (LGPD)</h2>
             <p>
               Você pode acessar e corrigir seus dados no painel e excluir sua conta a qualquer momento em Painel →
-              Perfil → Excluir conta. A exclusão tira do site seu perfil, anúncios, fotos, favoritos e conversas, com a
+              Perfil → Excluir conta. A exclusão tira do site seu perfil, anúncios, fotos, favoritos, conversas e chamados, com a
               retenção descrita acima. Denúncias feitas sobre você podem ser mantidas, sem vínculo com sua conta, para
               segurança da comunidade.
             </p>
@@ -87,7 +102,14 @@ export default function PrivacidadePage() {
 
           <section>
             <h2 className="text-lg font-bold text-petroleo mb-2">7. Contato</h2>
-            <p>Dúvidas sobre seus dados podem ser enviadas para a equipe da Circular pelos canais oficiais.</p>
+            <p>
+              Dúvidas e pedidos sobre seus dados: abra um chamado em Painel → Suporte (assunto &ldquo;Meus dados&rdquo;) ou
+              escreva para{" "}
+              <a href={linkMailtoSuporte("Meus dados no Circular")} className="text-petroleo font-semibold hover:underline">
+                {EMAIL_SUPORTE}
+              </a>
+              .
+            </p>
           </section>
         </div>
       </article>

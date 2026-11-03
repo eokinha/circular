@@ -7,13 +7,14 @@ import { assinarUsuario } from "@/lib/chat-realtime";
 import { PAGINAS_PAINEL } from "@/lib/painel-routes";
 import Logo from "@/components/Logo";
 import { logoDaFaculdade, nomeCurtoFaculdade } from "@/lib/faculdades";
-import { Flag, Image as ImageIcon, LogOut, MessageCircle, MessageSquare, Plus, Store, UserRound, Users } from "lucide-react";
+import { Flag, Image as ImageIcon, LifeBuoy, LogOut, MessageCircle, MessageSquare, Plus, Store, UserRound, Users } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 
 // Menu da conta: seção "Minha conta" (todo aluno) e "Administração" (só admin)
 const TITULO_SECAO = "px-4 pt-3 pb-1 text-xs text-tinta-sutil uppercase font-bold tracking-wider";
 const ITEM_MENU = "flex items-center gap-2.5 px-4 py-2 text-sm font-semibold text-tinta hover:bg-pagina transition";
 const PAGINAS_ADMIN = [
+  { href: "/admin/suporte", label: "Suporte", icon: LifeBuoy },
   { href: "/admin/contas", label: "Contas", icon: Users },
   { href: "/admin/denuncias", label: "Denúncias", icon: Flag },
   { href: "/admin/comentarios", label: "Comentários", icon: MessageSquare },

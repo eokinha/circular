@@ -10,6 +10,7 @@ import { mensagemAvisoLogin } from "@/lib/avisos-login";
 import Head from "next/head";
 import { destinoCompartilhado } from "@/lib/compartilhar";
 import { getResumoAnuncioCompartilhado, getResumoLojaCompartilhada, registrarAcesso } from "@/lib/queries";
+import { EMAIL_SUPORTE, linkMailtoSuporte } from "@/lib/suporte";
 
 // Prévia do link no WhatsApp (og:*): o WhatsApp segue o redirecionamento do middleware até aqui
 interface Previa {
@@ -85,7 +86,7 @@ function mensagemErroLogin(erro: AuthError | Error): string {
   }
 
   if (code === "user_banned" || message.includes("banned")) {
-    return "Esta conta está desativada. Entre em contato com o suporte.";
+    return `Esta conta está desativada. Escreva para ${EMAIL_SUPORTE} contando o que aconteceu.`;
   }
 
   if (code === "over_request_rate_limit" || status === 429) {
@@ -275,6 +276,12 @@ export default function LoginPage({ avisoCompartilhado, previa }: Props) {
           <Link href="/ajuda" className="text-tinta-sutil hover:text-petroleo hover:underline">
             Dúvidas? Veja a ajuda
           </Link>
+        </p>
+        <p className="mt-2 text-center text-sm text-tinta-sutil">
+          Não consegue entrar?{" "}
+          <a href={linkMailtoSuporte("Não consigo entrar no Circular")} className="hover:text-petroleo underline">
+            {EMAIL_SUPORTE}
+          </a>
         </p>
       </div>
     </div>
