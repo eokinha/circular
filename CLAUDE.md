@@ -25,18 +25,17 @@ E-mails do Supabase Auth (recuperação de senha, confirmação) saem pelo SMTP 
 configurado no painel do Supabase (Authentication → SMTP), não pelo código.
 Remetente `nao-responda@eokinha.com.br`; templates versionados em `db/emails/` (colar no painel ao alterar).
 
-### Cache (Cloudflare na frente da Vercel)
+### Cache
 
-- Páginas públicas sem dado de aluno chamam `liberarCacheVisitante(ctx)` (`src/lib/cache.ts`) no `getServerSideProps`:
-  hoje `/` (só visitante), `/login`, `/cadastro` e `/ajuda`. Sem cookie de sessão do Supabase, a resposta leva
-  `Cloudflare-CDN-Cache-Control` (5 min; só o Cloudflare lê) e `Cache-Control: private, no-cache` para o navegador.
-  `/termos`, `/privacidade` e `/esqueci-senha` (estáticas) e os arquivos de `public/` têm os cabeçalhos em `next.config.ts`
+- Páginas públicas sem dado de aluno chamam `liberarCacheVisitante(ctx)` (`src/lib/cache.ts`) no `getServerSideProps`,
+  depois das consultas: hoje `/` (só visitante), `/login`, `/cadastro` e `/ajuda`. Sem cookie de sessão do Supabase, saem com
+  `Cache-Control: private, no-cache` no lugar do `no-store` do Next (libera o bfcache; nenhum CDN guarda a página)
 - Nunca chamar o helper em página com dado de aluno (painel, anunciar, mensagens, admin, catálogo, perfil, anúncio, onboarding,
-  confirmar-email, redefinir-senha, `/api`). Chamar depois das consultas, para página de erro não entrar no cache
-- Painel do Cloudflare: regra "Eligible for cache" só para esses caminhos (Edge TTL "use cache-control header if present,
-  bypass if not") e regra de bypass com `http.cookie contains "-auth-token"`. O deploy de produção limpa o cache do host
-  (`.github/workflows/limpar-cache-cloudflare.yml`, segredos `CLOUDFLARE_ZONE_ID` e `CLOUDFLARE_API_TOKEN`)
-- O middleware não roda em arquivos de `public/` (filtro por extensão no `matcher`)
+  confirmar-email, redefinir-senha, `/api`)
+- Arquivos de `public/` (`/hero`, `/brand`, `/faculdades`, ícones) têm 1 dia de cache em `next.config.ts` e o middleware
+  não roda neles (filtro por extensão no `matcher`); fotos do Storage sobem com cache de 1 ano (a URL muda a cada upload)
+- O Cloudflare na frente da Vercel não tem regra de cache para HTML. Um plano para cachear as páginas públicas lá
+  (cabeçalho `Cloudflare-CDN-Cache-Control` + limpeza no deploy) está no commit `66b3391`
 
 O cliente em `src/lib/supabase.ts` só valida e cria o cliente no **primeiro uso**;
 assim a build não quebra na importação do módulo, mas a aplicação exige as variáveis
@@ -84,7 +83,7 @@ src/
 │   ├── painel-data.ts    # getServerSideProps compartilhado do painel
 │   ├── painel-routes.ts  # Rotas/abas do painel
 │   ├── storage.ts        # Helpers de upload para Supabase Storage
-│   ├── cache.ts          # Cache de páginas públicas no Cloudflare (só para visitante sem cookie de sessão)
+│   ├── cache.ts          # Cache-Control das páginas públicas (só para visitante sem cookie de sessão)
 │   ├── contato.ts        # Link/formatação do WhatsApp
 │   ├── avisos-login.ts   # Avisos fixos do /login (?aviso=) e urlLogin
 │   ├── senha-vazada.ts   # Checagem de senha vazada (HIBP, k-anonimato) no cadastro e redefinição

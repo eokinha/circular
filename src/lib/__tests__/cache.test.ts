@@ -1,7 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  CACHE_CLOUDFLARE_PAGINA,
   CACHE_NAVEGADOR_PAGINA,
   cabecalhosCacheVisitante,
   liberarCacheVisitante,
@@ -23,18 +22,14 @@ test("temCookieDeSessao ignora cookies que não são de sessão", () => {
   assert.equal(temCookieDeSessao(["auth-token", "sb-auth"]), false);
 });
 
-test("cabecalhosCacheVisitante libera o Cloudflare só sem sessão", () => {
-  assert.deepEqual(cabecalhosCacheVisitante(["_ga"]), {
-    "Cloudflare-CDN-Cache-Control": CACHE_CLOUDFLARE_PAGINA,
-    "Cache-Control": CACHE_NAVEGADOR_PAGINA,
-  });
+test("cabecalhosCacheVisitante muda o Cache-Control só sem sessão", () => {
+  assert.deepEqual(cabecalhosCacheVisitante(["_ga"]), { "Cache-Control": CACHE_NAVEGADOR_PAGINA });
   assert.equal(cabecalhosCacheVisitante([`${REF}-auth-token.0`]), null);
 });
 
-test("os cabeçalhos nunca deixam o navegador nem a Vercel guardarem como público", () => {
+test("o cabeçalho nunca deixa um CDN guardar a página (private, sem s-maxage)", () => {
   assert.match(CACHE_NAVEGADOR_PAGINA, /^private\b/);
   assert.doesNotMatch(CACHE_NAVEGADOR_PAGINA, /s-maxage|public/);
-  assert.match(CACHE_CLOUDFLARE_PAGINA, /^public, max-age=\d+/);
 });
 
 function contexto(cookies: Record<string, string>) {
@@ -49,7 +44,6 @@ function contexto(cookies: Record<string, string>) {
 test("liberarCacheVisitante grava os cabeçalhos para visitante e nada para quem tem sessão", () => {
   const visitante = contexto({ _ga: "1" });
   liberarCacheVisitante(visitante.ctx);
-  assert.equal(visitante.gravados["Cloudflare-CDN-Cache-Control"], CACHE_CLOUDFLARE_PAGINA);
   assert.equal(visitante.gravados["Cache-Control"], CACHE_NAVEGADOR_PAGINA);
 
   const logado = contexto({ [`${REF}-auth-token`]: "base64-..." });

@@ -27,7 +27,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
 
   // Visitante não vê catálogo (migração 19): só a apresentação
   if (!user) {
-    // HTML de visitante é igual para todos: o Cloudflare pode guardar (só sem cookie de sessão)
+    // HTML de visitante é igual para todos: sem no-store (libera o "voltar" instantâneo)
     liberarCacheVisitante(ctx);
     return {
       props: {

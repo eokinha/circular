@@ -55,14 +55,7 @@ const headersSeguranca = [
   { key: "Strict-Transport-Security", value: "max-age=63072000" },
 ];
 
-// Cache (ver src/lib/cache.ts). Cloudflare-CDN-Cache-Control só vale para o Cloudflare, que não o repassa.
-// Páginas estáticas: o mesmo HTML para todos; o cabeçalho sai só sem cookie de sessão do Supabase
-// (espelho de PADRAO_COOKIE_SESSAO), e o deploy limpa o cache (.github/workflows/limpar-cache-cloudflare.yml)
-const PAGINAS_ESTATICAS_PUBLICAS = ["/termos", "/privacidade", "/esqueci-senha"];
-const semSessao = [{ type: "header" as const, key: "cookie", value: ".*sb-[^=;]+-auth-token.*" }];
-const cachePaginaEstatica = [
-  { key: "Cloudflare-CDN-Cache-Control", value: "public, max-age=3600, stale-while-revalidate=86400" },
-];
+// Cache (páginas públicas com getServerSideProps: src/lib/cache.ts).
 // Arquivos de public/ sem hash no nome: 1 dia de cache; depois serve a cópia enquanto confere (até 7 dias)
 const ARQUIVOS_PUBLICOS = ["/hero/:path*", "/brand/:path*", "/faculdades/:path*", "/icon.svg", "/favicon.ico", "/apple-touch-icon.png"];
 const cacheArquivoPublico = [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }];
@@ -82,7 +75,6 @@ const nextConfig: NextConfig = {
         missing: hostAnuncios,
         headers: [{ key: "Content-Security-Policy", value: montarCsp(false) }, ...headersSeguranca],
       },
-      ...PAGINAS_ESTATICAS_PUBLICAS.map((source) => ({ source, missing: semSessao, headers: cachePaginaEstatica })),
       ...ARQUIVOS_PUBLICOS.map((source) => ({ source, headers: cacheArquivoPublico })),
     ];
   },

@@ -26,7 +26,7 @@ interface Props {
 // Domínios das faculdades participantes: o campus do aluno sai do e-mail (o banco confere de novo no signup)
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const instituicoes = await getInstituicoes(createServerClient(ctx));
-  // Lista pública de faculdades: o Cloudflare pode guardar (depois da consulta: página de erro não entra no cache)
+  // Lista pública de faculdades: sem no-store (depois da consulta: página de erro segue o padrão)
   liberarCacheVisitante(ctx);
   return { props: { instituicoes: instituicoes.filter((i) => (i.dominios ?? []).length > 0) } };
 };

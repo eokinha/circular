@@ -1,22 +1,16 @@
-// Cache de páginas públicas no Cloudflare (que fica na frente da Vercel em circular.eokinha.com.br).
+// Cache das páginas públicas no navegador.
 //
-// Cloudflare-CDN-Cache-Control só vale para o Cloudflare: ele não repassa o cabeçalho, e nem a Vercel nem o
-// navegador o leem. Assim a página continua com getServerSideProps e só o Cloudflare guarda a cópia.
-// Só se libera o cache para quem chega SEM cookie de sessão do Supabase; quem tem sessão segue com o padrão
-// do Next (private, no-store). No painel do Cloudflare, uma regra também ignora o cache quando o cookie existe.
+// O padrão do Next para getServerSideProps é "private, no-cache, no-store": o no-store impede o "voltar"
+// instantâneo do navegador (bfcache). Para visitante SEM cookie de sessão do Supabase, a página pública sai
+// com "private, no-cache": o navegador sempre confirma com o servidor e nenhum CDN guarda a cópia (private).
+// Quem tem sessão segue com o padrão do Next.
 
 import type { GetServerSidePropsContext } from "next";
 
 // Cookie de sessão do @supabase/ssr: sb-<ref>-auth-token, em pedaços (.0, .1) quando é grande.
-// O code-verifier (sb-<ref>-auth-token-code-verifier) também conta: é melhor não cachear do que errar.
-// Espelho: regra de bypass do Cloudflare (http.cookie contains "-auth-token") e o `missing` do next.config.ts
+// O code-verifier (sb-<ref>-auth-token-code-verifier) também conta: na dúvida, segue o padrão do Next
 export const PADRAO_COOKIE_SESSAO = /^sb-.+-auth-token/;
 
-// Páginas com getServerSideProps: 5 min no Cloudflare; depois serve a cópia enquanto busca a nova.
-// O deploy limpa o cache (.github/workflows/limpar-cache-cloudflare.yml)
-export const CACHE_CLOUDFLARE_PAGINA = "public, max-age=300, stale-while-revalidate=86400";
-
-// Navegador: sempre confirma com o servidor, mas sem no-store (libera o "voltar" instantâneo, o bfcache)
 export const CACHE_NAVEGADOR_PAGINA = "private, no-cache";
 
 export function temCookieDeSessao(nomesCookies: Iterable<string>): boolean {
@@ -29,13 +23,11 @@ export function temCookieDeSessao(nomesCookies: Iterable<string>): boolean {
 // Cabeçalhos para a página pública; null quando há sessão (a resposta segue o padrão do Next)
 export function cabecalhosCacheVisitante(nomesCookies: Iterable<string>): Record<string, string> | null {
   if (temCookieDeSessao(nomesCookies)) return null;
-  return {
-    "Cloudflare-CDN-Cache-Control": CACHE_CLOUDFLARE_PAGINA,
-    "Cache-Control": CACHE_NAVEGADOR_PAGINA,
-  };
+  return { "Cache-Control": CACHE_NAVEGADOR_PAGINA };
 }
 
-// Chamar só em página pública, cujo HTML de visitante é o mesmo para todos (nunca com dado de aluno)
+// Chamar só em página pública, cujo HTML de visitante é o mesmo para todos (nunca com dado de aluno),
+// e depois das consultas (página de erro segue o padrão do Next)
 export function liberarCacheVisitante(ctx: Pick<GetServerSidePropsContext, "req" | "res">): void {
   const cabecalhos = cabecalhosCacheVisitante(Object.keys(ctx.req.cookies ?? {}));
   if (!cabecalhos) return;

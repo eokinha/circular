@@ -30,7 +30,7 @@ function formatarPreco(valor: number): string {
 // Chegou por um link compartilhado (?aviso=loja|anuncio&next=...?c={código}): mostra de quem é a loja
 // ou qual é o anúncio. O texto vem do banco e só com o código certo; nada de texto livre da URL.
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
-  // Sem dado de aluno (a prévia do link compartilhado é pública): o Cloudflare pode guardar
+  // Sem dado de aluno (a prévia do link compartilhado é pública): o navegador pode usar o "voltar" instantâneo
   liberarCacheVisitante(ctx);
   const alvo = destinoCompartilhado(ctx.query.next);
   const vazio = { props: { avisoCompartilhado: null, previa: null } };

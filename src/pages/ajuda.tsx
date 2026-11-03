@@ -17,7 +17,7 @@ interface Props {
 // Página pública: o visitante precisa dela antes de conseguir se cadastrar
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const instituicoes = await getInstituicoes(createServerClient(ctx));
-  // Lista pública de faculdades: o Cloudflare pode guardar (depois da consulta: página de erro não entra no cache)
+  // Lista pública de faculdades: sem no-store (depois da consulta: página de erro segue o padrão)
   liberarCacheVisitante(ctx);
   return { props: { instituicoes: instituicoes.filter((i) => (i.dominios ?? []).length > 0) } };
 };
