@@ -39,6 +39,7 @@ export const GUIAS_POR_DOMINIO: Record<string, GuiaFaculdade> = {
   "ucsal.br": { provedor: "google" },
   "unijorge.edu.br": { provedor: "microsoft" },
   "unijorge.com.br": { provedor: "microsoft" },
+  "aluno.faculdadezarns.com.br": { provedor: "microsoft" },
   "uniftc.edu.br": { provedor: "microsoft" },
   "estacio.br": { provedor: "microsoft" },
   "uninassau.edu.br": { provedor: "microsoft" },
