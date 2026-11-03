@@ -1,4 +1,4 @@
-import { Heart, LayoutDashboard, Package, User } from "lucide-react";
+import { Heart, LayoutDashboard, LifeBuoy, Package, User } from "lucide-react";
 
 export const PAGINAS_PAINEL = {
   "visao-geral": {
@@ -28,6 +28,13 @@ export const PAGINAS_PAINEL = {
     label: "Meus dados",
     title: "Meus dados",
     icon: User,
+  },
+  suporte: {
+    id: "suporte",
+    href: "/painel/suporte",
+    label: "Suporte",
+    title: "Suporte",
+    icon: LifeBuoy,
   },
 } as const;
 

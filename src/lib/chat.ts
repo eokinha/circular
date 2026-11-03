@@ -6,6 +6,8 @@ import type { MensagemChat } from "@/types";
 export const topicoConversa = (conversaId: string) => `conversa:${conversaId}`;
 export const topicoDigitando = (conversaId: string) => `conversa:${conversaId}:digitando`;
 export const topicoUsuario = (usuarioId: number) => `usuario:${usuarioId}`;
+// Chamado de suporte (migração 31): dono do chamado e equipe; só o banco publica
+export const topicoChamado = (chamadoId: string) => `chamado:${chamadoId}`;
 
 // Mensagem ainda não confirmada pelo banco (aparece na hora, com o id provisório negativo)
 export interface MensagemTela extends MensagemChat {
@@ -13,10 +15,19 @@ export interface MensagemTela extends MensagemChat {
   falhou?: boolean;
 }
 
+// O que mesclarMensagens precisa (chat e chamados de suporte)
+interface MensagemMesclavel {
+  id: number;
+  cliente_id: string;
+  criado_em: string;
+  pendente?: boolean;
+  falhou?: boolean;
+}
+
 // Junta mensagens novas às da tela sem duplicar: a confirmada (mesmo cliente_id) substitui a provisória,
 // e o Realtime pode entregar uma mensagem que a RPC já devolveu. Ordem: confirmadas por id, pendentes no fim.
-export function mesclarMensagens(atuais: MensagemTela[], novas: MensagemTela[]): MensagemTela[] {
-  const porCliente = new Map<string, MensagemTela>();
+export function mesclarMensagens<T extends MensagemMesclavel>(atuais: T[], novas: T[]): T[] {
+  const porCliente = new Map<string, T>();
   for (const m of atuais) porCliente.set(m.cliente_id, m);
   for (const m of novas) {
     const existente = porCliente.get(m.cliente_id);
@@ -33,7 +44,7 @@ export function mesclarMensagens(atuais: MensagemTela[], novas: MensagemTela[]):
 }
 
 // Maior id confirmado (ponto de partida para buscar o que chegou durante uma queda de conexão)
-export function ultimoIdConfirmado(mensagens: MensagemTela[]): number | null {
+export function ultimoIdConfirmado(mensagens: MensagemMesclavel[]): number | null {
   let maior: number | null = null;
   for (const m of mensagens) {
     if (!m.pendente && !m.falhou && (maior === null || m.id > maior)) maior = m.id;

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Logo from "@/components/Logo";
+import { linkMailtoSuporte } from "@/lib/suporte";
 
 export default function Footer() {
   return (
@@ -14,6 +15,9 @@ export default function Footer() {
           <Link href="/ajuda" className="hover:text-white hover:underline min-h-[44px] inline-flex items-center">
             Ajuda
           </Link>
+          <a href={linkMailtoSuporte()} className="hover:text-white hover:underline min-h-[44px] inline-flex items-center">
+            Fale com o suporte
+          </a>
           <Link href="/termos" className="hover:text-white hover:underline min-h-[44px] inline-flex items-center">
             Termos de Uso
           </Link>

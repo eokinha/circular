@@ -11,7 +11,8 @@ import { useConfirmacao } from "@/components/ModalConfirmacao";
 import SecaoAnuncios from "@/components/painel/SecaoAnuncios";
 import SecaoFavoritos from "@/components/painel/SecaoFavoritos";
 import SecaoPerfil from "@/components/painel/SecaoPerfil";
-import type { Loja, Produto, ProdutoListagem, ProdutoStatus, Usuario } from "@/types";
+import SecaoSuporte from "@/components/painel/SecaoSuporte";
+import type { ChamadoLeitura, ChamadoResumo, Loja, Produto, ProdutoListagem, ProdutoStatus, Usuario } from "@/types";
 import {
   CircleCheck,
   Clock,
@@ -32,7 +33,12 @@ export default function PainelEstudante({
   instituicoes,
   situacaoConta,
   abaAtiva,
-}: PainelProps & { abaAtiva: AbaPainel }) {
+  suporte,
+}: PainelProps & {
+  abaAtiva: AbaPainel;
+  // Só em /painel/suporte (pages/painel/suporte.tsx)
+  suporte?: { chamados: ChamadoResumo[]; chamadoAberto: ChamadoLeitura | null };
+}) {
   const router = useRouter();
 
   const [loja, setLoja] = useState<Loja>(lojaInicial);
@@ -149,18 +155,18 @@ export default function PainelEstudante({
                     {situacao === "suspensa"
                       ? "Até lá, ninguém vê seu perfil nem seus anúncios. Depois o perfil volta sozinho; os anúncios você reativa aqui. "
                       : "Ninguém vê seu perfil nem seus anúncios. "}
-                    Se acha que é um engano, fale com a equipe pela{" "}
-                    <Link href="/ajuda" className="text-petroleo font-semibold underline">
-                      ajuda
+                    Se acha que é um engano,{" "}
+                    <Link href={PAGINAS_PAINEL.suporte.href} className="text-petroleo font-semibold underline">
+                      abra um chamado com a equipe
                     </Link>
                     .
                   </>
                 ) : (
                   <>
                     <strong className="font-semibold">Seu perfil está fora do ar pela moderação.</strong> Se acha que é
-                    um engano, fale com a equipe pela{" "}
-                    <Link href="/ajuda" className="text-petroleo font-semibold underline">
-                      ajuda
+                    um engano,{" "}
+                    <Link href={PAGINAS_PAINEL.suporte.href} className="text-petroleo font-semibold underline">
+                      abra um chamado com a equipe
                     </Link>
                     .
                   </>
@@ -399,6 +405,14 @@ export default function PainelEstudante({
             <SecaoFavoritos
               favoritos={favoritos}
               onRemovido={handleFavoritoRemovido}
+            />
+          )}
+
+          {abaAtiva === "suporte" && suporte && (
+            <SecaoSuporte
+              chamados={suporte.chamados}
+              chamadoAberto={suporte.chamadoAberto}
+              contaRestrita={situacao !== "ativa"}
             />
           )}
 
