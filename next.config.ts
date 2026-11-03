@@ -55,6 +55,11 @@ const headersSeguranca = [
   { key: "Strict-Transport-Security", value: "max-age=63072000" },
 ];
 
+// Cache (páginas públicas com getServerSideProps: src/lib/cache.ts).
+// Arquivos de public/ sem hash no nome: 1 dia de cache; depois serve a cópia enquanto confere (até 7 dias)
+const ARQUIVOS_PUBLICOS = ["/hero/:path*", "/brand/:path*", "/faculdades/:path*", "/icon.svg", "/favicon.ico", "/apple-touch-icon.png"];
+const cacheArquivoPublico = [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }];
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   async headers() {
@@ -70,6 +75,7 @@ const nextConfig: NextConfig = {
         missing: hostAnuncios,
         headers: [{ key: "Content-Security-Policy", value: montarCsp(false) }, ...headersSeguranca],
       },
+      ...ARQUIVOS_PUBLICOS.map((source) => ({ source, headers: cacheArquivoPublico })),
     ];
   },
 };

@@ -91,12 +91,11 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * Feel free to modify this pattern to include more paths.
+     * Tudo, menos:
+     * - _next/static e _next/image (arquivos do build e otimização de imagem)
+     * - arquivos de public/ pela extensão (hero, brand, faculdades, ícones, ads.txt): sem sessão para checar,
+     *   e passar pelo middleware impedia o cache deles na Vercel e no Cloudflare
      */
-    "/((?!_next/static|_next/image|favicon.ico).*)",
+    "/((?!_next/static|_next/image|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|txt|xml|webmanifest)$).*)",
   ],
 };
